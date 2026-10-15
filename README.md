@@ -8,7 +8,7 @@ Protótipo de aplicação de gestão de compras domésticas, desenvolvido no âm
 - Iryna Ungurian (2025475)
 - Gonçalo Dias (2025185)
 
-Turma D, Grupo 1
+Turma L, Grupo 1
 
 ## Funcionalidades
 
