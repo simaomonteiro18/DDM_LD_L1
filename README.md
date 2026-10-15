@@ -5,8 +5,8 @@ Protótipo de aplicação de gestão de compras domésticas, desenvolvido no âm
 ## Grupo
 
 - Simão Monteiro (2025417)
-- Nome Apelido (número)
-- Nome Apelido (número)
+- Iryna Ungurian (2025475)
+- Gonçalo Dias (2025185)
 
 Turma D, Grupo 1
 
