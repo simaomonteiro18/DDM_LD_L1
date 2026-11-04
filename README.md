@@ -20,7 +20,9 @@ Turma L, Grupo 1
 
 ## Tecnologias
 
-A definir (ver tarefa ILG-3).
+- Backend: Java e Spring Boot
+- Base de dados: PostgreSQL 16, com Docker Compose
+- Frontend: React Native com Expo
 
 ## Instalação e execução
 
