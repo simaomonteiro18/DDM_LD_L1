@@ -29,6 +29,18 @@ public class TratadorErros extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, erro, new HttpHeaders(), HttpStatus.UNAUTHORIZED, request);
     }
 
+    @ExceptionHandler(RecursoNaoEncontradoException.class)
+    public ResponseEntity<Object> tratarNaoEncontrado(RecursoNaoEncontradoException ex, WebRequest request) {
+        ErroResposta erro = criarErro(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+        return handleExceptionInternal(ex, erro, new HttpHeaders(), HttpStatus.NOT_FOUND, request);
+    }
+
+    @ExceptionHandler(ConflitoException.class)
+    public ResponseEntity<Object> tratarConflito(ConflitoException ex, WebRequest request) {
+        ErroResposta erro = criarErro(HttpStatus.CONFLICT, ex.getMessage(), request);
+        return handleExceptionInternal(ex, erro, new HttpHeaders(), HttpStatus.CONFLICT, request);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> tratarInesperado(Exception ex, WebRequest request) {
         return handleExceptionInternal(ex, null, new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, request);
