@@ -17,3 +17,12 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+
+ishopping:
+  jwt:
+    segredo: ${JWT_SECRET:}
+    expiracao-horas: ${JWT_EXPIRACAO_HORAS:8}
+  admin:
+    username: ${ADMIN_USERNAME:}
+    nome: ${ADMIN_NOME:}
+    password: ${ADMIN_PASSWORD:}
