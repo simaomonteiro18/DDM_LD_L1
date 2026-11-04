@@ -9,6 +9,9 @@ spring:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${POSTGRES_DB:ishopping}
     username: ${POSTGRES_USER:ishopping}
     password: ${POSTGRES_PASSWORD}
+  jackson:
+    deserialization:
+      accept-float-as-int: false
   jpa:
     open-in-view: false
     hibernate:
