@@ -29,6 +29,12 @@ public class TratadorErros extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, erro, new HttpHeaders(), HttpStatus.UNAUTHORIZED, request);
     }
 
+    @ExceptionHandler(PedidoInvalidoException.class)
+    public ResponseEntity<Object> tratarPedidoInvalido(PedidoInvalidoException ex, WebRequest request) {
+        ErroResposta erro = criarErro(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+        return handleExceptionInternal(ex, erro, new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
+    }
+
     @ExceptionHandler(RecursoNaoEncontradoException.class)
     public ResponseEntity<Object> tratarNaoEncontrado(RecursoNaoEncontradoException ex, WebRequest request) {
         ErroResposta erro = criarErro(HttpStatus.NOT_FOUND, ex.getMessage(), request);
