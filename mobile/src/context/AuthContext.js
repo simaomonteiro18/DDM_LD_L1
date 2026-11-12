@@ -1,11 +1,24 @@
 import { createContext, useContext, useState } from 'react';
+import { definirToken } from '../api/client';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null); // { id, nome, username }
+  // Dados do utilizador logado (inclui o token), guardados durante a execução
+  const [user, setUser] = use State(null);
+
+  function entrar(dados) {
+    definirToken(dados.token);
+    setUser(dados);
+  }
+
+  function sair() {
+    definirToken(null);
+    setUser(null);
+  }
+
   return (
-    <AuthContext.Provider value={{ user, setUser }}>
+    <AuthContext.Provider value={{ user, entrar, sair }}>
       {children}
     </AuthContext.Provider>
   );
