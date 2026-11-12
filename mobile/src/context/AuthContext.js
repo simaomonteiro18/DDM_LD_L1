@@ -5,7 +5,7 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   // Dados do utilizador logado (inclui o token), guardados durante a execução
-  const [user, setUser] = use State(null);
+  const [user, setUser] = useState(null);
 
   function entrar(dados) {
     definirToken(dados.token);
