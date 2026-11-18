@@ -3,6 +3,7 @@ package pt.istec.ishopping.repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -25,4 +26,10 @@ public interface OrcamentoRepository extends JpaRepository<Orcamento, Integer> {
     List<Orcamento> findAllComUtilizadoresPorAno(@Param("ano") Integer ano);
 
     Optional<Orcamento> findByAnoAndMes(Integer ano, Integer mes);
+
+    List<Orcamento> findByAno(Integer ano);
+
+    @Query("select o from Orcamento o where o.ano < :ano or (o.ano = :ano and o.mes < :mes)"
+            + " order by o.ano desc, o.mes desc")
+    List<Orcamento> findAnterioresA(@Param("ano") Integer ano, @Param("mes") Integer mes, Pageable limite);
 }

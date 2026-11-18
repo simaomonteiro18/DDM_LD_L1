@@ -14,9 +14,10 @@ public record CompraResposta(
         UtilizadorResposta alteradoPor,
         Instant dataAlterado,
         UtilizadorResposta fechadaPor,
-        Instant dataFechada) {
+        Instant dataFechada,
+        long totalItensPrevistos) {
 
-    public static CompraResposta de(Compra compra) {
+    public static CompraResposta de(Compra compra, long totalItensPrevistos) {
         return new CompraResposta(
                 compra.getId(),
                 compra.getNome(),
@@ -26,7 +27,8 @@ public record CompraResposta(
                 utilizador(compra.getAlteradoPor()),
                 compra.getDataAlterado(),
                 utilizador(compra.getFechadaPor()),
-                compra.getDataFechada());
+                compra.getDataFechada(),
+                totalItensPrevistos);
     }
 
     private static UtilizadorResposta utilizador(Utilizador utilizador) {

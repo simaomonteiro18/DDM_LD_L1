@@ -13,8 +13,10 @@ Documentação dos endpoints do backend, para a construção dos ecrãs da aplic
 7. [Orçamentos](#7-orçamentos)
 8. [Compras](#8-compras)
 9. [Itens de compra](#9-itens-de-compra)
-10. [Regras de negócio](#10-regras-de-negócio)
-11. [Fluxo de exemplo](#11-fluxo-de-exemplo)
+10. [Estatísticas](#10-estatísticas)
+11. [Sugestões](#11-sugestões)
+12. [Regras de negócio](#12-regras-de-negócio)
+13. [Fluxo de exemplo](#13-fluxo-de-exemplo)
 
 ## 1. Introdução
 
@@ -412,6 +414,50 @@ GET /api/orcamentos?ano=2026
 ]
 ```
 
+### `GET /api/orcamentos/disponivel`
+
+Devolve o orçamento de um mês, quanto já foi gasto e quanto resta.
+
+**Parâmetros opcionais**
+
+| Parâmetro | Tipo | Regras e mensagens |
+|---|---|---|
+| `ano` | número inteiro | Entre 2000 e 2100: `"O ano tem de estar entre 2000 e 2100."` Por omissão, o ano atual. |
+| `mes` | número inteiro | Entre 1 e 12: `"O mês tem de estar entre 1 e 12."` Por omissão, o mês atual. |
+
+O ano e o mês atuais são os de Portugal continental (fuso `Europe/Lisbon`). Cada parâmetro omitido é substituído pelo valor atual, independentemente do outro. Um valor não numérico dá 400 `"O pedido é inválido."`
+
+**Resposta 200**
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `ano` | número | |
+| `mes` | número | |
+| `orcamento` | número | Valor do orçamento desse mês, com 2 casas decimais |
+| `gasto` | número | Total gasto no mês, com 2 casas decimais |
+| `disponivel` | número | `orcamento` menos `gasto`; negativo se o orçamento foi ultrapassado |
+| `percentagemRestante` | número ou `null` | `disponivel` sobre `orcamento`, em percentagem arredondada ao inteiro mais próximo; pode ser negativa. `null` quando o orçamento é 0. |
+| `ultrapassado` | booleano | `true` se `disponivel` for negativo |
+
+O `gasto` é a soma de `quantidadeAdquirida` × `precoUnitario` de todos os itens, previstos e não previstos, das compras criadas nesse mês, abertas ou fechadas. O mês de uma compra é o da sua `dataCriacao`, no fuso `Europe/Lisbon`. Os itens ainda não adquiridos contam 0.
+
+**Códigos:** 200, 400, 404 `"Não existe orçamento para este mês."`
+
+```json
+GET /api/orcamentos/disponivel?ano=2026&mes=11
+
+200 OK
+{
+  "ano": 2026,
+  "mes": 11,
+  "orcamento": 100.00,
+  "gasto": 7.25,
+  "disponivel": 92.75,
+  "percentagemRestante": 93,
+  "ultrapassado": false
+}
+```
+
 ### `GET /api/orcamentos/{id}`
 
 Devolve um orçamento.
@@ -502,6 +548,7 @@ Objeto compra na resposta:
 | `dataAlterado` | string (data) ou `null` | |
 | `fechadaPor` | objeto ou `null` | Utilizador que fechou; `null` enquanto estiver aberta |
 | `dataFechada` | string (data) ou `null` | |
+| `totalItensPrevistos` | número | Número de itens previstos da compra (os não previstos não contam) |
 
 Os itens não vêm na compra. Obtêm-se em `GET /api/compras/{id}/itens`.
 
@@ -527,7 +574,8 @@ GET /api/compras?fechada=false
     "alteradoPor": null,
     "dataAlterado": null,
     "fechadaPor": null,
-    "dataFechada": null
+    "dataFechada": null,
+    "totalItensPrevistos": 0
   }
 ]
 ```
@@ -567,7 +615,8 @@ Location: http://IP:8080/api/compras/5
   "alteradoPor": null,
   "dataAlterado": null,
   "fechadaPor": null,
-  "dataFechada": null
+  "dataFechada": null,
+  "totalItensPrevistos": 0
 }
 ```
 
@@ -595,7 +644,8 @@ PUT /api/compras/5
   "alteradoPor": { "id": 1, "nome": "Ana Silva", "username": "ana.silva" },
   "dataAlterado": "2026-11-12T13:40:02.104512Z",
   "fechadaPor": null,
-  "dataFechada": null
+  "dataFechada": null,
+  "totalItensPrevistos": 0
 }
 ```
 
@@ -620,7 +670,8 @@ POST /api/compras/5/fechar
   "alteradoPor": { "id": 1, "nome": "Ana Silva", "username": "ana.silva" },
   "dataAlterado": "2026-11-12T13:40:02.104512Z",
   "fechadaPor": { "id": 1, "nome": "Ana Silva", "username": "ana.silva" },
-  "dataFechada": "2026-11-12T18:05:41.230001Z"
+  "dataFechada": "2026-11-12T18:05:41.230001Z",
+  "totalItensPrevistos": 1
 }
 ```
 
@@ -629,6 +680,56 @@ POST /api/compras/5/fechar
 Apaga uma compra aberta e todos os seus itens.
 
 **Códigos:** 204, 404 `"A compra não existe."`, 409 `"Não é possível apagar uma compra fechada."`
+
+### `GET /api/compras/exportar`
+
+Descarrega um ficheiro CSV com as compras fechadas do utilizador autenticado, uma linha por item. Não tem parâmetros.
+
+**Resposta 200:** o ficheiro, com os cabeçalhos HTTP:
+
+```
+Content-Type: text/csv;charset=UTF-8
+Content-Disposition: attachment; filename="compras-fechadas.csv"
+```
+
+**Que compras entram:** só as compras **fechadas** criadas pelo utilizador do token. As compras abertas e as dos outros utilizadores ficam de fora. As compras vêm da data de fecho mais recente para a mais antiga (em caso de empate, pelo id); dentro de cada compra, os itens vêm pela ordem em que foram criados. Uma compra fechada sem itens não gera linhas. Sem compras fechadas, o ficheiro tem só o cabeçalho.
+
+**Formato:**
+
+- texto em UTF-8 com BOM, para o Excel mostrar bem os acentos;
+- separador `;` e linhas terminadas em CRLF;
+- primeira linha com o cabeçalho, exatamente:
+
+  ```
+  NomeCompra;DataCriacao;DataFechada;NomeArtigo;ArtigoPrevisto;ArtigoNaoPrevisto;QuantidadePrevista;QuantidadeAdquirida;PrecoUnitario
+  ```
+
+| Coluna | Conteúdo |
+|---|---|
+| `NomeCompra` | Nome da compra |
+| `DataCriacao` | Data de criação da compra, `dd/MM/yyyy HH:mm` no fuso `Europe/Lisbon` |
+| `DataFechada` | Data de fecho da compra, no mesmo formato |
+| `NomeArtigo` | Nome do artigo do item |
+| `ArtigoPrevisto` | `Sim` se o item for previsto, `Não` se não for |
+| `ArtigoNaoPrevisto` | `Sim` se o item for não previsto, `Não` se não for |
+| `QuantidadePrevista` | Quantidade prevista; vazia nos itens não previstos |
+| `QuantidadeAdquirida` | Quantidade adquirida; vazia se o item ainda não foi adquirido |
+| `PrecoUnitario` | Preço unitário com 2 casas decimais e vírgula decimal, sem separador de milhares (por exemplo `1234,50`); vazio se o item ainda não foi adquirido |
+
+**Campos de texto** (`NomeCompra` e `NomeArtigo`):
+
+- se começarem por `=`, `+`, `-`, `@`, tabulação ou retorno de carro, levam um apóstrofo à frente (por exemplo `'=SOMA(A1:A9)`), para a folha de cálculo não os executar como fórmula;
+- se tiverem `;`, aspas ou quebras de linha, vão entre aspas, com as aspas interiores duplicadas (por exemplo `"Jantar; festa"`).
+
+**Códigos:** 200, 401.
+
+```
+NomeCompra;DataCriacao;DataFechada;NomeArtigo;ArtigoPrevisto;ArtigoNaoPrevisto;QuantidadePrevista;QuantidadeAdquirida;PrecoUnitario
+'=SOMA(A1:A9);18/11/2026 10:27;18/11/2026 10:27;Leite;Não;Sim;;1;0,89
+"Jantar; festa";18/11/2026 10:26;18/11/2026 10:26;Arroz;Sim;Não;2;2;1,50
+"Jantar; festa";18/11/2026 10:26;18/11/2026 10:26;Massa;Sim;Não;3;;
+"Jantar; festa";18/11/2026 10:26;18/11/2026 10:26;Maçã;Não;Sim;;1;1234,50
+```
 
 ## 9. Itens de compra
 
@@ -824,7 +925,173 @@ Apaga um item de uma compra aberta.
 
 **Códigos:** 204, 400, 404 (`"A compra não existe."` ou `"O item de compra não existe."`), 409 `"Não é possível apagar itens de uma compra fechada."`
 
-## 10. Regras de negócio
+## 10. Estatísticas
+
+Dados para o ecrã de Estatísticas. Os dois endpoints só fazem leituras.
+
+### `GET /api/estatisticas/meses`
+
+Devolve, para cada um dos 12 meses de um ano, o orçamento, o total gasto em compras e a diferença.
+
+**Parâmetro opcional:** `?ano=AAAA`, entre 2000 e 2100 (`"O ano tem de estar entre 2000 e 2100."`). Por omissão, o ano atual em Portugal continental (fuso `Europe/Lisbon`). Um valor não numérico dá 400 `"O pedido é inválido."`
+
+**Resposta 200:** uma lista com 12 elementos, de janeiro (`mes: 1`) a dezembro (`mes: 12`), sempre pela mesma ordem.
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `mes` | número | 1 a 12 |
+| `orcamento` | número ou `null` | Valor do orçamento desse mês, com 2 casas decimais; `null` se não existir orçamento |
+| `totalCompras` | número | Total gasto nesse mês, com 2 casas decimais; `0.00` se não houver compras |
+| `diferenca` | número ou `null` | `orcamento` menos `totalCompras`; negativa se o orçamento foi ultrapassado; `null` se não existir orçamento |
+
+O `totalCompras` segue a mesma regra do `gasto` de `GET /api/orcamentos/disponivel`: soma de `quantidadeAdquirida` × `precoUnitario` dos itens das compras criadas nesse mês, abertas ou fechadas, pela `dataCriacao` no fuso `Europe/Lisbon`. Os itens ainda não adquiridos contam 0.
+
+**Códigos:** 200, 400.
+
+```json
+GET /api/estatisticas/meses?ano=2026
+
+200 OK
+[
+  { "mes": 1, "orcamento": null, "totalCompras": 0.00, "diferenca": null },
+  ...
+  { "mes": 10, "orcamento": 200.00, "totalCompras": 20.00, "diferenca": 180.00 },
+  { "mes": 11, "orcamento": 50.00, "totalCompras": 67.25, "diferenca": -17.25 },
+  { "mes": 12, "orcamento": null, "totalCompras": 0.00, "diferenca": null }
+]
+```
+
+### `GET /api/estatisticas/compras-fechadas`
+
+Lista as compras fechadas, da mais recente para a mais antiga pela data de fecho, com o resumo dos seus itens. As compras abertas não aparecem.
+
+**Resposta 200:** uma lista; vazia se não houver compras fechadas.
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `id` | número | |
+| `nome` | string | |
+| `dataCriacao` | string (data) | |
+| `dataFechada` | string (data) | |
+| `totalGasto` | número | Soma de `quantidadeAdquirida` × `precoUnitario` dos itens, com 2 casas decimais; os itens não adquiridos contam 0 |
+| `totalItens` | número | Número de itens da compra |
+| `itensPrevistos` | número | Número de itens previstos |
+| `itensNaoPrevistos` | número | Número de itens não previstos |
+| `percentagemPrevistos` | número | `itensPrevistos` sobre `totalItens`, em percentagem arredondada ao inteiro mais próximo; 0 se a compra não tiver itens |
+| `percentagemNaoPrevistos` | número | 100 menos `percentagemPrevistos`; 0 se a compra não tiver itens |
+
+As duas percentagens somam sempre 100 (ou ficam ambas a 0 numa compra sem itens): por exemplo, 1 item previsto em 8 dá 13 e 87.
+
+**Códigos:** 200.
+
+```json
+GET /api/estatisticas/compras-fechadas
+
+200 OK
+[
+  {
+    "id": 11,
+    "nome": "Compras da semana",
+    "dataCriacao": "2026-11-18T10:13:02.888488Z",
+    "dataFechada": "2026-11-18T10:13:04.552153Z",
+    "totalGasto": 7.25,
+    "totalItens": 3,
+    "itensPrevistos": 2,
+    "itensNaoPrevistos": 1,
+    "percentagemPrevistos": 67,
+    "percentagemNaoPrevistos": 33
+  }
+]
+```
+
+## 11. Sugestões
+
+Apoio à decisão: um valor para o orçamento de um mês e uma lista de compras para uma semana do mês, calculados a partir do histórico. Os dois endpoints só fazem leituras.
+
+### `GET /api/sugestoes/orcamento`
+
+Sugere o orçamento de um mês (o mês alvo) a partir dos orçamentos anteriores.
+
+**Parâmetros opcionais**
+
+| Parâmetro | Tipo | Regras e mensagens |
+|---|---|---|
+| `ano` | número inteiro | Entre 2000 e 2100: `"O ano tem de estar entre 2000 e 2100."` |
+| `mes` | número inteiro | Entre 1 e 12: `"O mês tem de estar entre 1 e 12."` |
+
+Sem parâmetros, o mês alvo é o mês seguinte ao mês atual em Portugal continental (fuso `Europe/Lisbon`); em dezembro, é janeiro do ano seguinte. Se vier só um dos parâmetros, o outro é o do mês alvo por omissão (por exemplo, em novembro de 2026, `?mes=6` é junho de 2026). Um valor não numérico dá 400 `"O pedido é inválido."`
+
+**Resposta 200**
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `ano` | número | Ano do mês alvo |
+| `mes` | número | Mês alvo |
+| `valorSugerido` | número | Média dos valores dos orçamentos usados, com 2 casas decimais (meio arredonda para cima) |
+| `baseadoEm` | número | Número de orçamentos usados, de 1 a 6 |
+
+São usados os orçamentos dos até 6 meses mais recentes anteriores ao mês alvo, só os que existem: os meses sem orçamento não contam nem são preenchidos.
+
+**Códigos:** 200, 400, 404 `"Não existem orçamentos anteriores para sugerir um valor."`
+
+```json
+GET /api/sugestoes/orcamento
+
+200 OK
+{ "ano": 2026, "mes": 12, "valorSugerido": 55.83, "baseadoEm": 6 }
+```
+
+### `GET /api/sugestoes/lista-compras`
+
+Sugere os artigos a comprar numa semana do mês, a partir do que foi comprado nessa semana noutros meses.
+
+**Parâmetro obrigatório**
+
+| Parâmetro | Tipo | Regras e mensagens |
+|---|---|---|
+| `semana` | número inteiro | Obrigatório: `"A semana é obrigatória."`; entre 1 e 4: `"A semana tem de estar entre 1 e 4."`. Um valor que não seja inteiro dá `"O pedido é inválido."` |
+
+As semanas do mês são: 1 = dias 1 a 7, 2 = dias 8 a 14, 3 = dias 15 a 21, 4 = dia 22 até ao fim do mês.
+
+**Que itens contam:** os itens já adquiridos (com `quantidadeAdquirida`) das compras **fechadas**, de qualquer utilizador e de qualquer mês, cuja compra foi criada nessa semana do mês. O dia é o da `dataCriacao` da compra no fuso `Europe/Lisbon`. Os itens por adquirir e as compras abertas não contam.
+
+**Resposta 200:** uma lista de artigos; vazia se não houver histórico para essa semana.
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `idArtigo` | número | |
+| `nomeArtigo` | string | |
+| `tipoArtigo` | objeto | Tipo do artigo: `id`, `nome` |
+| `vezes` | número | Número de compras distintas em que o artigo foi adquirido nessa semana |
+| `quantidadeSugerida` | número | Média da quantidade adquirida nesses itens, arredondada ao inteiro mais próximo (no mínimo 1) |
+
+A lista vem por `vezes` decrescente; em caso de empate, por `nomeArtigo` e depois por `idArtigo`.
+
+**Códigos:** 200, 400.
+
+```json
+GET /api/sugestoes/lista-compras?semana=2
+
+200 OK
+[
+  {
+    "idArtigo": 1,
+    "nomeArtigo": "Arroz",
+    "tipoArtigo": { "id": 1, "nome": "Mercearia" },
+    "vezes": 3,
+    "quantidadeSugerida": 3
+  },
+  {
+    "idArtigo": 4,
+    "nomeArtigo": "Leite",
+    "tipoArtigo": { "id": 2, "nome": "Laticínios" },
+    "vezes": 2,
+    "quantidadeSugerida": 2
+  }
+]
+```
+
+## 12. Regras de negócio
 
 | Regra | O que acontece |
 |---|---|
@@ -845,10 +1112,11 @@ Filtros disponíveis nas listagens:
 | `GET /api/artigos` | `idTipoArtigo` (inteiro) | `/api/artigos?idTipoArtigo=1` |
 | `GET /api/orcamentos` | `ano` (inteiro) | `/api/orcamentos?ano=2026` |
 | `GET /api/compras` | `fechada` (`true` ou `false`) | `/api/compras?fechada=false` |
+| `GET /api/estatisticas/meses` | `ano` (inteiro) | `/api/estatisticas/meses?ano=2026` |
 
 Sem filtro, a listagem devolve tudo. Um filtro sem resultados devolve `[]` com 200. Um filtro com valor do tipo errado dá 400.
 
-## 11. Fluxo de exemplo
+## 13. Fluxo de exemplo
 
 Uma compra do início ao fim. Os ids são de exemplo; em cada passo usa-se o `id` devolvido no passo anterior.
 

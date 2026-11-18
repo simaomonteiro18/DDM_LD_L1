@@ -9,9 +9,10 @@ export function AuthProvider({ children }) {
   // O token fica no cliente da API (definirToken).
   const [user, setUser] = useState(null);
 
-  function entrar(dados) {
-    definirToken(dados.token);
-    const { id, nome, username } = dados.utilizador;
+  // A resposta do login e { token, tipo, expiraEm, utilizador: { id, nome, username } }
+  function entrar(resposta) {
+    definirToken(resposta.token);
+    const { id, nome, username } = resposta.utilizador;
     setUser({ id, nome, username });
   }
 
@@ -20,7 +21,8 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
-  // Um pedido autenticado devolveu 401: o token expirou ou o utilizador foi apagado
+  // Um pedido autenticado devolveu 401: o token expirou ou o utilizador foi apagado.
+  // O 401 do proprio login nao passa por aqui (ver o interceptor em api/client.js).
   useEffect(() => {
     definirAoExpirarSessao(() => {
       sair();

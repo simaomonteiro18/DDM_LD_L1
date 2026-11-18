@@ -27,6 +27,8 @@ import pt.istec.ishopping.model.Compra;
 import pt.istec.ishopping.model.ItemCompraPrevisto;
 import pt.istec.ishopping.model.Utilizador;
 import pt.istec.ishopping.repository.CompraRepository;
+import pt.istec.ishopping.repository.ItemCompraRepository;
+import pt.istec.ishopping.repository.TotalItensCompra;
 import pt.istec.ishopping.security.UtilizadorAutenticado;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,6 +36,8 @@ class CompraServiceTest {
 
     @Mock
     private CompraRepository compraRepository;
+    @Mock
+    private ItemCompraRepository itemCompraRepository;
     @Mock
     private UtilizadorAutenticado utilizadorAutenticado;
     @InjectMocks
@@ -69,6 +73,35 @@ class CompraServiceTest {
         assertThat(compraService.listar(null))
                 .extracting(CompraResposta::id)
                 .containsExactly(2, 1);
+    }
+
+    @Test
+    void listarIndicaOTotalDeItensPrevistosComUmaSoConsulta() {
+        when(compraRepository.findAllByOrderByDataCriacaoDescIdDesc())
+                .thenReturn(List.of(criarCompra(2, "Semana 2"), criarCompra(1, "Semana 1")));
+        when(itemCompraRepository.contarPrevistosPorCompra(List.of(2, 1)))
+                .thenReturn(List.of(new TotalItensCompra(2, 3L)));
+
+        assertThat(compraService.listar(null))
+                .extracting(CompraResposta::totalItensPrevistos)
+                .containsExactly(3L, 0L);
+        verify(itemCompraRepository, never()).contarPrevistos(any());
+    }
+
+    @Test
+    void listarSemComprasNaoContaItens() {
+        when(compraRepository.findAllByOrderByDataCriacaoDescIdDesc()).thenReturn(List.of());
+
+        assertThat(compraService.listar(null)).isEmpty();
+        verify(itemCompraRepository, never()).contarPrevistosPorCompra(any());
+    }
+
+    @Test
+    void obterIndicaOTotalDeItensPrevistos() {
+        when(compraRepository.findById(1)).thenReturn(Optional.of(criarCompra(1, "Semana 1")));
+        when(itemCompraRepository.contarPrevistos(1)).thenReturn(4L);
+
+        assertThat(compraService.obter(1).totalItensPrevistos()).isEqualTo(4L);
     }
 
     @Test
@@ -108,6 +141,7 @@ class CompraServiceTest {
         assertThat(resposta.alteradoPor()).isNull();
         assertThat(resposta.fechadaPor()).isNull();
         assertThat(resposta.dataFechada()).isNull();
+        assertThat(resposta.totalItensPrevistos()).isZero();
     }
 
     @Test
@@ -116,9 +150,11 @@ class CompraServiceTest {
         when(compraRepository.findByIdParaAlterar(1)).thenReturn(Optional.of(compra));
         when(utilizadorAutenticado.obter()).thenReturn(criarUtilizador(2, "rui"));
         when(compraRepository.saveAndFlush(compra)).thenReturn(compra);
+        when(itemCompraRepository.contarPrevistos(1)).thenReturn(2L);
 
         CompraResposta resposta = compraService.atualizar(1, new CompraAtualizarPedido("Semana 2"));
 
+        assertThat(resposta.totalItensPrevistos()).isEqualTo(2L);
         assertThat(resposta.nome()).isEqualTo("Semana 2");
         assertThat(resposta.criadoPor().username()).isEqualTo("ana");
         assertThat(resposta.alteradoPor().username()).isEqualTo("rui");
@@ -150,9 +186,11 @@ class CompraServiceTest {
         when(compraRepository.findByIdParaAlterar(1)).thenReturn(Optional.of(compra));
         when(utilizadorAutenticado.obter()).thenReturn(criarUtilizador(2, "rui"));
         when(compraRepository.saveAndFlush(compra)).thenReturn(compra);
+        when(itemCompraRepository.contarPrevistos(1)).thenReturn(5L);
 
         CompraResposta resposta = compraService.fechar(1);
 
+        assertThat(resposta.totalItensPrevistos()).isEqualTo(5L);
         assertThat(resposta.fechada()).isTrue();
         assertThat(resposta.fechadaPor().username()).isEqualTo("rui");
         assertThat(resposta.dataFechada()).isNotNull();

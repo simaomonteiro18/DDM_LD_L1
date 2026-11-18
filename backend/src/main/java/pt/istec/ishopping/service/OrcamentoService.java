@@ -2,6 +2,8 @@ package pt.istec.ishopping.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -10,8 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import pt.istec.ishopping.dto.OrcamentoAtualizarPedido;
 import pt.istec.ishopping.dto.OrcamentoCriarPedido;
+import pt.istec.ishopping.dto.OrcamentoDisponivelResposta;
 import pt.istec.ishopping.dto.OrcamentoResposta;
 import pt.istec.ishopping.exception.ConflitoException;
+import pt.istec.ishopping.exception.PedidoInvalidoException;
 import pt.istec.ishopping.exception.RecursoNaoEncontradoException;
 import pt.istec.ishopping.model.Orcamento;
 import pt.istec.ishopping.repository.OrcamentoRepository;
@@ -21,12 +25,16 @@ import pt.istec.ishopping.security.UtilizadorAutenticado;
 public class OrcamentoService {
 
     private static final String PERIODO_EM_USO = "Já existe um orçamento para este mês e ano.";
+    private static final BigDecimal CEM = BigDecimal.valueOf(100);
 
     private final OrcamentoRepository orcamentoRepository;
+    private final GastoMensalService gastoMensal;
     private final UtilizadorAutenticado utilizadorAutenticado;
 
-    public OrcamentoService(OrcamentoRepository orcamentoRepository, UtilizadorAutenticado utilizadorAutenticado) {
+    public OrcamentoService(OrcamentoRepository orcamentoRepository, GastoMensalService gastoMensal,
+            UtilizadorAutenticado utilizadorAutenticado) {
         this.orcamentoRepository = orcamentoRepository;
+        this.gastoMensal = gastoMensal;
         this.utilizadorAutenticado = utilizadorAutenticado;
     }
 
@@ -43,6 +51,31 @@ public class OrcamentoService {
     @Transactional(readOnly = true)
     public OrcamentoResposta obter(Integer id) {
         return OrcamentoResposta.de(procurar(id));
+    }
+
+    @Transactional(readOnly = true)
+    public OrcamentoDisponivelResposta disponivel(Integer ano, Integer mes) {
+        LocalDate hoje = gastoMensal.hoje();
+        int anoPedido = ano == null ? hoje.getYear() : ano;
+        int mesPedido = mes == null ? hoje.getMonthValue() : mes;
+        if (anoPedido < 2000 || anoPedido > 2100) {
+            throw new PedidoInvalidoException("O ano tem de estar entre 2000 e 2100.");
+        }
+        if (mesPedido < 1 || mesPedido > 12) {
+            throw new PedidoInvalidoException("O mês tem de estar entre 1 e 12.");
+        }
+        Orcamento orcamento = orcamentoRepository.findByAnoAndMes(anoPedido, mesPedido)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Não existe orçamento para este mês."));
+
+        BigDecimal gasto = gastoMensal.doMes(YearMonth.of(anoPedido, mesPedido));
+
+        BigDecimal valor = orcamento.getValor().setScale(2, RoundingMode.HALF_UP);
+        BigDecimal disponivel = valor.subtract(gasto);
+        BigDecimal percentagem = valor.signum() == 0
+                ? null
+                : disponivel.multiply(CEM).divide(valor, 0, RoundingMode.HALF_UP);
+        return new OrcamentoDisponivelResposta(anoPedido, mesPedido, valor, gasto, disponivel, percentagem,
+                disponivel.signum() < 0);
     }
 
     @Transactional

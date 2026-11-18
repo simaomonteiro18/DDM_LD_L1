@@ -24,6 +24,8 @@ public interface CompraRepository extends JpaRepository<Compra, Integer> {
     @EntityGraph(attributePaths = { "criadoPor", "alteradoPor", "fechadaPor" })
     List<Compra> findByFechadaOrderByDataCriacaoDescIdDesc(boolean fechada);
 
+    List<Compra> findByFechadaTrueOrderByDataFechadaDescIdDesc();
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Compra c where c.id = :id")
     Optional<Compra> findByIdParaAlterar(@Param("id") Integer id);

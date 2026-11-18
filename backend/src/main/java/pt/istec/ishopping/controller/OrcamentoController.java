@@ -20,6 +20,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import jakarta.validation.Valid;
 import pt.istec.ishopping.dto.OrcamentoAtualizarPedido;
 import pt.istec.ishopping.dto.OrcamentoCriarPedido;
+import pt.istec.ishopping.dto.OrcamentoDisponivelResposta;
 import pt.istec.ishopping.dto.OrcamentoResposta;
 import pt.istec.ishopping.service.OrcamentoService;
 
@@ -36,6 +37,12 @@ public class OrcamentoController {
     @GetMapping
     public List<OrcamentoResposta> listar(@RequestParam(required = false) Integer ano) {
         return orcamentoService.listar(ano);
+    }
+
+    @GetMapping("/disponivel")
+    public OrcamentoDisponivelResposta disponivel(@RequestParam(required = false) Integer ano,
+            @RequestParam(required = false) Integer mes) {
+        return orcamentoService.disponivel(ano, mes);
     }
 
     @GetMapping("/{id}")
