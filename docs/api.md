@@ -14,8 +14,9 @@ Documentação dos endpoints do backend, para a construção dos ecrãs da aplic
 8. [Compras](#8-compras)
 9. [Itens de compra](#9-itens-de-compra)
 10. [Estatísticas](#10-estatísticas)
-11. [Regras de negócio](#11-regras-de-negócio)
-12. [Fluxo de exemplo](#12-fluxo-de-exemplo)
+11. [Sugestões](#11-sugestões)
+12. [Regras de negócio](#12-regras-de-negócio)
+13. [Fluxo de exemplo](#13-fluxo-de-exemplo)
 
 ## 1. Introdução
 
@@ -1003,7 +1004,94 @@ GET /api/estatisticas/compras-fechadas
 ]
 ```
 
-## 11. Regras de negócio
+## 11. Sugestões
+
+Apoio à decisão: um valor para o orçamento de um mês e uma lista de compras para uma semana do mês, calculados a partir do histórico. Os dois endpoints só fazem leituras.
+
+### `GET /api/sugestoes/orcamento`
+
+Sugere o orçamento de um mês (o mês alvo) a partir dos orçamentos anteriores.
+
+**Parâmetros opcionais**
+
+| Parâmetro | Tipo | Regras e mensagens |
+|---|---|---|
+| `ano` | número inteiro | Entre 2000 e 2100: `"O ano tem de estar entre 2000 e 2100."` |
+| `mes` | número inteiro | Entre 1 e 12: `"O mês tem de estar entre 1 e 12."` |
+
+Sem parâmetros, o mês alvo é o mês seguinte ao mês atual em Portugal continental (fuso `Europe/Lisbon`); em dezembro, é janeiro do ano seguinte. Se vier só um dos parâmetros, o outro é o do mês alvo por omissão (por exemplo, em novembro de 2026, `?mes=6` é junho de 2026). Um valor não numérico dá 400 `"O pedido é inválido."`
+
+**Resposta 200**
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `ano` | número | Ano do mês alvo |
+| `mes` | número | Mês alvo |
+| `valorSugerido` | número | Média dos valores dos orçamentos usados, com 2 casas decimais (meio arredonda para cima) |
+| `baseadoEm` | número | Número de orçamentos usados, de 1 a 6 |
+
+São usados os orçamentos dos até 6 meses mais recentes anteriores ao mês alvo, só os que existem: os meses sem orçamento não contam nem são preenchidos.
+
+**Códigos:** 200, 400, 404 `"Não existem orçamentos anteriores para sugerir um valor."`
+
+```json
+GET /api/sugestoes/orcamento
+
+200 OK
+{ "ano": 2026, "mes": 12, "valorSugerido": 55.83, "baseadoEm": 6 }
+```
+
+### `GET /api/sugestoes/lista-compras`
+
+Sugere os artigos a comprar numa semana do mês, a partir do que foi comprado nessa semana noutros meses.
+
+**Parâmetro obrigatório**
+
+| Parâmetro | Tipo | Regras e mensagens |
+|---|---|---|
+| `semana` | número inteiro | Obrigatório: `"A semana é obrigatória."`; entre 1 e 4: `"A semana tem de estar entre 1 e 4."`. Um valor que não seja inteiro dá `"O pedido é inválido."` |
+
+As semanas do mês são: 1 = dias 1 a 7, 2 = dias 8 a 14, 3 = dias 15 a 21, 4 = dia 22 até ao fim do mês.
+
+**Que itens contam:** os itens já adquiridos (com `quantidadeAdquirida`) das compras **fechadas**, de qualquer utilizador e de qualquer mês, cuja compra foi criada nessa semana do mês. O dia é o da `dataCriacao` da compra no fuso `Europe/Lisbon`. Os itens por adquirir e as compras abertas não contam.
+
+**Resposta 200:** uma lista de artigos; vazia se não houver histórico para essa semana.
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `idArtigo` | número | |
+| `nomeArtigo` | string | |
+| `tipoArtigo` | objeto | Tipo do artigo: `id`, `nome` |
+| `vezes` | número | Número de compras distintas em que o artigo foi adquirido nessa semana |
+| `quantidadeSugerida` | número | Média da quantidade adquirida nesses itens, arredondada ao inteiro mais próximo (no mínimo 1) |
+
+A lista vem por `vezes` decrescente; em caso de empate, por `nomeArtigo` e depois por `idArtigo`.
+
+**Códigos:** 200, 400.
+
+```json
+GET /api/sugestoes/lista-compras?semana=2
+
+200 OK
+[
+  {
+    "idArtigo": 1,
+    "nomeArtigo": "Arroz",
+    "tipoArtigo": { "id": 1, "nome": "Mercearia" },
+    "vezes": 3,
+    "quantidadeSugerida": 3
+  },
+  {
+    "idArtigo": 4,
+    "nomeArtigo": "Leite",
+    "tipoArtigo": { "id": 2, "nome": "Laticínios" },
+    "vezes": 2,
+    "quantidadeSugerida": 2
+  }
+]
+```
+
+## 12. Regras de negócio
 
 | Regra | O que acontece |
 |---|---|
@@ -1028,7 +1116,7 @@ Filtros disponíveis nas listagens:
 
 Sem filtro, a listagem devolve tudo. Um filtro sem resultados devolve `[]` com 200. Um filtro com valor do tipo errado dá 400.
 
-## 12. Fluxo de exemplo
+## 13. Fluxo de exemplo
 
 Uma compra do início ao fim. Os ids são de exemplo; em cada passo usa-se o `id` devolvido no passo anterior.
 
