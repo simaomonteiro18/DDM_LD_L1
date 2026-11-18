@@ -1,14 +1,20 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
-import api from '../api/client';
+import { useFocusEffect } from '@react-navigation/native';
+import api, { mensagemDeErro, obterServidor } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { cores } from '../tema';
 
-export default function LoginScreen() {
+export default function LoginScreen({ navigation }) {
   const { entrar } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [erro, setErro] = useState('');
   const [aCarregar, setACarregar] = useState(false);
+  const [servidor, setServidor] = useState(obterServidor());
+
+  // Atualiza o endereço mostrado quando se volta do ecrã "Servidor"
+  useFocusEffect(useCallback(() => { setServidor(obterServidor()); }, []));
 
   async function fazerLogin() {
     if (!username.trim() || !password) {
@@ -22,12 +28,7 @@ export default function LoginScreen() {
       if (!res.data?.token) throw new Error('Resposta sem token');
       entrar(res.data);
     } catch (e) {
-      if (e.response) {
-        // O backend respondeu com erro (ex.: 401 credenciais erradas, 400 validação)
-        setErro(e.response.data?.erro ?? 'Username ou palavra-passe inválidos.');
-      } else {
-        setErro('Não foi possível ligar ao servidor. Verifica a rede e o IP.');
-      }
+      setErro(mensagemDeErro(e, 'Username ou palavra-passe inválidos.'));
     } finally {
       setACarregar(false);
     }
@@ -65,20 +66,28 @@ export default function LoginScreen() {
       >
         {aCarregar ? <ActivityIndicator color="#fff" /> : <Text style={s.botaoTexto}>Entrar</Text>}
       </Pressable>
+
+      <Pressable style={s.servidor} onPress={() => navigation.navigate('Servidor')}>
+        <Text style={s.servidorTexto}>Servidor: {servidor}</Text>
+        <Text style={s.servidorLink}>Alterar</Text>
+      </Pressable>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  ecra: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#F4F5F1' },
-  titulo: { fontSize: 32, fontWeight: '800', textAlign: 'center', color: '#17201C' },
-  subtitulo: { fontSize: 15, textAlign: 'center', color: '#5B6660', marginTop: 6, marginBottom: 36 },
-  label: { fontSize: 14, fontWeight: '700', marginBottom: 6, color: '#17201C' },
+  ecra: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: cores.fundo },
+  titulo: { fontSize: 32, fontWeight: '800', textAlign: 'center', color: cores.texto },
+  subtitulo: { fontSize: 15, textAlign: 'center', color: cores.textoSecundario, marginTop: 6, marginBottom: 36 },
+  label: { fontSize: 14, fontWeight: '700', marginBottom: 6, color: cores.texto },
   input: {
-    height: 52, borderWidth: 1.5, borderColor: '#C9CFC6', borderRadius: 12,
-    paddingHorizontal: 16, fontSize: 16, backgroundColor: '#fff', marginBottom: 16,
+    height: 52, borderWidth: 1.5, borderColor: cores.borda, borderRadius: 12,
+    paddingHorizontal: 16, fontSize: 16, backgroundColor: cores.cartao, marginBottom: 16,
   },
-  erro: { color: '#B42318', backgroundColor: '#FDECEA', padding: 12, borderRadius: 10, marginBottom: 16 },
-  botao: { height: 54, borderRadius: 14, backgroundColor: '#0B6E55', alignItems: 'center', justifyContent: 'center' },
+  erro: { color: cores.erro, backgroundColor: cores.erroSuave, padding: 12, borderRadius: 10, marginBottom: 16 },
+  botao: { height: 54, borderRadius: 14, backgroundColor: cores.primaria, alignItems: 'center', justifyContent: 'center' },
   botaoTexto: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  servidor: { marginTop: 28, flexDirection: 'row', justifyContent: 'center', gap: 8, padding: 12 },
+  servidorTexto: { fontSize: 13, color: cores.textoSecundario },
+  servidorLink: { fontSize: 13, fontWeight: '700', color: cores.primaria, textDecorationLine: 'underline' },
 });
