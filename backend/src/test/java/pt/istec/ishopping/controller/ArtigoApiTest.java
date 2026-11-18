@@ -36,6 +36,7 @@ import pt.istec.ishopping.model.TipoArtigo;
 import pt.istec.ishopping.model.Utilizador;
 import pt.istec.ishopping.repository.ArtigoRepository;
 import pt.istec.ishopping.repository.TipoArtigoRepository;
+import pt.istec.ishopping.repository.UtilizadorRepository;
 import pt.istec.ishopping.security.JwtService;
 
 @SpringBootTest
@@ -49,6 +50,8 @@ class ArtigoApiTest {
     private MockMvc mockMvc;
     @Autowired
     private JwtService jwtService;
+    @MockitoBean
+    private UtilizadorRepository utilizadorRepository;
     @MockitoBean
     private ArtigoRepository artigoRepository;
     @MockitoBean
@@ -65,6 +68,7 @@ class ArtigoApiTest {
     void preparar() {
         Utilizador utilizador = new Utilizador();
         ReflectionTestUtils.setField(utilizador, "id", 1);
+        when(utilizadorRepository.existsById(1)).thenReturn(true);
         autorizacao = "Bearer " + jwtService.gerar(utilizador).valor();
         mercearia = new TipoArtigo();
         ReflectionTestUtils.setField(mercearia, "id", 2);

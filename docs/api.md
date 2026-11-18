@@ -101,6 +101,8 @@ Valida o username e a palavra-passe e devolve um token. É o único endpoint que
 
 **Códigos:** 200, 400 (campos em falta), 401 `"Credenciais inválidas."` (username inexistente ou palavra-passe errada; a mensagem é a mesma nos dois casos).
 
+Se o utilizador for apagado, o seu token deixa de funcionar logo, mesmo antes de expirar: qualquer pedido com esse token dá 401 com a mensagem habitual de token inválido.
+
 ```json
 POST /api/auth/login
 {

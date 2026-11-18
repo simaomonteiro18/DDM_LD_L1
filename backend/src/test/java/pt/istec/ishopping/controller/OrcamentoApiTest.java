@@ -69,6 +69,7 @@ class OrcamentoApiTest {
         autenticado.setNome("Ana");
         autenticado.setUsername("ana");
         when(utilizadorRepository.findById(1)).thenReturn(Optional.of(autenticado));
+        when(utilizadorRepository.existsById(1)).thenReturn(true);
         autorizacao = "Bearer " + jwtService.gerar(autenticado).valor();
     }
 

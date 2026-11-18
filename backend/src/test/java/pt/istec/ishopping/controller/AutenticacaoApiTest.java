@@ -140,6 +140,7 @@ class AutenticacaoApiTest {
     void tokenValidoPassaASegurancaEEnderecoInexistenteDevolve404() throws Exception {
         Utilizador utilizador = new Utilizador();
         ReflectionTestUtils.setField(utilizador, "id", 1);
+        when(utilizadorRepository.existsById(1)).thenReturn(true);
         String token = jwtService.gerar(utilizador).valor();
 
         mockMvc.perform(get(PROTEGIDO).header("Authorization", "Bearer " + token))
