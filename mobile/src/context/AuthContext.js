@@ -1,21 +1,33 @@
-import { createContext, useContext, useState } from 'react';
-import { definirToken } from '../api/client';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { Alert } from 'react-native';
+import { definirToken, definirAoExpirarSessao } from '../api/client';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  // Dados do utilizador logado (inclui o token), guardados durante a execução
+  // Utilizador logado { id, nome, username }, guardado durante a execucao.
+  // O token fica no cliente da API (definirToken).
   const [user, setUser] = useState(null);
 
   function entrar(dados) {
     definirToken(dados.token);
-    setUser(dados);
+    const { id, nome, username } = dados.utilizador;
+    setUser({ id, nome, username });
   }
 
   function sair() {
     definirToken(null);
     setUser(null);
   }
+
+  // Um pedido autenticado devolveu 401: o token expirou ou o utilizador foi apagado
+  useEffect(() => {
+    definirAoExpirarSessao(() => {
+      sair();
+      Alert.alert('Sessão terminada', 'A sessão terminou. Entra de novo.');
+    });
+    return () => definirAoExpirarSessao(null);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, entrar, sair }}>
