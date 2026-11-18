@@ -28,6 +28,11 @@ public interface ItemCompraRepository extends JpaRepository<ItemCompra, Integer>
             + " from ItemCompraPrevisto p where p.compra.id in :idsCompras group by p.compra.id")
     List<TotalItensCompra> contarPrevistosPorCompra(@Param("idsCompras") Collection<Integer> idsCompras);
 
+    @Query("select new pt.istec.ishopping.repository.GastoCompra(c.id, c.dataCriacao,"
+            + " sum(i.quantidadeAdquirida * i.precoUnitario)) from ItemCompra i join i.compra c"
+            + " where c.dataCriacao >= :inicio and c.dataCriacao < :fim group by c.id, c.dataCriacao")
+    List<GastoCompra> somarGastoPorCompraEntre(@Param("inicio") Instant inicio, @Param("fim") Instant fim);
+
     @Query("select sum(i.quantidadeAdquirida * i.precoUnitario) from ItemCompra i"
             + " where i.compra.dataCriacao >= :inicio and i.compra.dataCriacao < :fim")
     BigDecimal somarGastoEntre(@Param("inicio") Instant inicio, @Param("fim") Instant fim);
