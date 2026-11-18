@@ -223,7 +223,8 @@ class OrcamentoServiceTest {
     }
 
     private OrcamentoService servicoComRelogio() {
-        return new OrcamentoService(orcamentoRepository, itemCompraRepository, utilizadorAutenticado, RELOGIO);
+        return new OrcamentoService(orcamentoRepository, new GastoMensalService(itemCompraRepository, RELOGIO),
+                utilizadorAutenticado);
     }
 
     @Test

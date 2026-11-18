@@ -2,11 +2,8 @@ package pt.istec.ishopping.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.time.ZoneId;
 import java.util.List;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -21,7 +18,6 @@ import pt.istec.ishopping.exception.ConflitoException;
 import pt.istec.ishopping.exception.PedidoInvalidoException;
 import pt.istec.ishopping.exception.RecursoNaoEncontradoException;
 import pt.istec.ishopping.model.Orcamento;
-import pt.istec.ishopping.repository.ItemCompraRepository;
 import pt.istec.ishopping.repository.OrcamentoRepository;
 import pt.istec.ishopping.security.UtilizadorAutenticado;
 
@@ -29,20 +25,17 @@ import pt.istec.ishopping.security.UtilizadorAutenticado;
 public class OrcamentoService {
 
     private static final String PERIODO_EM_USO = "Já existe um orçamento para este mês e ano.";
-    private static final ZoneId ZONA = ZoneId.of("Europe/Lisbon");
     private static final BigDecimal CEM = BigDecimal.valueOf(100);
 
     private final OrcamentoRepository orcamentoRepository;
-    private final ItemCompraRepository itemCompraRepository;
+    private final GastoMensalService gastoMensal;
     private final UtilizadorAutenticado utilizadorAutenticado;
-    private final Clock relogio;
 
-    public OrcamentoService(OrcamentoRepository orcamentoRepository, ItemCompraRepository itemCompraRepository,
-            UtilizadorAutenticado utilizadorAutenticado, Clock relogio) {
+    public OrcamentoService(OrcamentoRepository orcamentoRepository, GastoMensalService gastoMensal,
+            UtilizadorAutenticado utilizadorAutenticado) {
         this.orcamentoRepository = orcamentoRepository;
-        this.itemCompraRepository = itemCompraRepository;
+        this.gastoMensal = gastoMensal;
         this.utilizadorAutenticado = utilizadorAutenticado;
-        this.relogio = relogio;
     }
 
     @Transactional(readOnly = true)
@@ -62,7 +55,7 @@ public class OrcamentoService {
 
     @Transactional(readOnly = true)
     public OrcamentoDisponivelResposta disponivel(Integer ano, Integer mes) {
-        LocalDate hoje = LocalDate.ofInstant(relogio.instant(), ZONA);
+        LocalDate hoje = gastoMensal.hoje();
         int anoPedido = ano == null ? hoje.getYear() : ano;
         int mesPedido = mes == null ? hoje.getMonthValue() : mes;
         if (anoPedido < 2000 || anoPedido > 2100) {
@@ -74,12 +67,7 @@ public class OrcamentoService {
         Orcamento orcamento = orcamentoRepository.findByAnoAndMes(anoPedido, mesPedido)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Não existe orçamento para este mês."));
 
-        // O mes conta pela data de criacao da compra, no fuso de Lisboa
-        YearMonth periodo = YearMonth.of(anoPedido, mesPedido);
-        Instant inicio = periodo.atDay(1).atStartOfDay(ZONA).toInstant();
-        Instant fim = periodo.plusMonths(1).atDay(1).atStartOfDay(ZONA).toInstant();
-        BigDecimal somado = itemCompraRepository.somarGastoEntre(inicio, fim);
-        BigDecimal gasto = (somado == null ? BigDecimal.ZERO : somado).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal gasto = gastoMensal.doMes(YearMonth.of(anoPedido, mesPedido));
 
         BigDecimal valor = orcamento.getValor().setScale(2, RoundingMode.HALF_UP);
         BigDecimal disponivel = valor.subtract(gasto);

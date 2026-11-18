@@ -13,8 +13,9 @@ Documentação dos endpoints do backend, para a construção dos ecrãs da aplic
 7. [Orçamentos](#7-orçamentos)
 8. [Compras](#8-compras)
 9. [Itens de compra](#9-itens-de-compra)
-10. [Regras de negócio](#10-regras-de-negócio)
-11. [Fluxo de exemplo](#11-fluxo-de-exemplo)
+10. [Estatísticas](#10-estatísticas)
+11. [Regras de negócio](#11-regras-de-negócio)
+12. [Fluxo de exemplo](#12-fluxo-de-exemplo)
 
 ## 1. Introdução
 
@@ -873,7 +874,86 @@ Apaga um item de uma compra aberta.
 
 **Códigos:** 204, 400, 404 (`"A compra não existe."` ou `"O item de compra não existe."`), 409 `"Não é possível apagar itens de uma compra fechada."`
 
-## 10. Regras de negócio
+## 10. Estatísticas
+
+Dados para o ecrã de Estatísticas. Os dois endpoints só fazem leituras.
+
+### `GET /api/estatisticas/meses`
+
+Devolve, para cada um dos 12 meses de um ano, o orçamento, o total gasto em compras e a diferença.
+
+**Parâmetro opcional:** `?ano=AAAA`, entre 2000 e 2100 (`"O ano tem de estar entre 2000 e 2100."`). Por omissão, o ano atual em Portugal continental (fuso `Europe/Lisbon`). Um valor não numérico dá 400 `"O pedido é inválido."`
+
+**Resposta 200:** uma lista com 12 elementos, de janeiro (`mes: 1`) a dezembro (`mes: 12`), sempre pela mesma ordem.
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `mes` | número | 1 a 12 |
+| `orcamento` | número ou `null` | Valor do orçamento desse mês, com 2 casas decimais; `null` se não existir orçamento |
+| `totalCompras` | número | Total gasto nesse mês, com 2 casas decimais; `0.00` se não houver compras |
+| `diferenca` | número ou `null` | `orcamento` menos `totalCompras`; negativa se o orçamento foi ultrapassado; `null` se não existir orçamento |
+
+O `totalCompras` segue a mesma regra do `gasto` de `GET /api/orcamentos/disponivel`: soma de `quantidadeAdquirida` × `precoUnitario` dos itens das compras criadas nesse mês, abertas ou fechadas, pela `dataCriacao` no fuso `Europe/Lisbon`. Os itens ainda não adquiridos contam 0.
+
+**Códigos:** 200, 400.
+
+```json
+GET /api/estatisticas/meses?ano=2026
+
+200 OK
+[
+  { "mes": 1, "orcamento": null, "totalCompras": 0.00, "diferenca": null },
+  ...
+  { "mes": 10, "orcamento": 200.00, "totalCompras": 20.00, "diferenca": 180.00 },
+  { "mes": 11, "orcamento": 50.00, "totalCompras": 67.25, "diferenca": -17.25 },
+  { "mes": 12, "orcamento": null, "totalCompras": 0.00, "diferenca": null }
+]
+```
+
+### `GET /api/estatisticas/compras-fechadas`
+
+Lista as compras fechadas, da mais recente para a mais antiga pela data de fecho, com o resumo dos seus itens. As compras abertas não aparecem.
+
+**Resposta 200:** uma lista; vazia se não houver compras fechadas.
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `id` | número | |
+| `nome` | string | |
+| `dataCriacao` | string (data) | |
+| `dataFechada` | string (data) | |
+| `totalGasto` | número | Soma de `quantidadeAdquirida` × `precoUnitario` dos itens, com 2 casas decimais; os itens não adquiridos contam 0 |
+| `totalItens` | número | Número de itens da compra |
+| `itensPrevistos` | número | Número de itens previstos |
+| `itensNaoPrevistos` | número | Número de itens não previstos |
+| `percentagemPrevistos` | número | `itensPrevistos` sobre `totalItens`, em percentagem arredondada ao inteiro mais próximo; 0 se a compra não tiver itens |
+| `percentagemNaoPrevistos` | número | 100 menos `percentagemPrevistos`; 0 se a compra não tiver itens |
+
+As duas percentagens somam sempre 100 (ou ficam ambas a 0 numa compra sem itens): por exemplo, 1 item previsto em 8 dá 13 e 87.
+
+**Códigos:** 200.
+
+```json
+GET /api/estatisticas/compras-fechadas
+
+200 OK
+[
+  {
+    "id": 11,
+    "nome": "Compras da semana",
+    "dataCriacao": "2026-11-18T10:13:02.888488Z",
+    "dataFechada": "2026-11-18T10:13:04.552153Z",
+    "totalGasto": 7.25,
+    "totalItens": 3,
+    "itensPrevistos": 2,
+    "itensNaoPrevistos": 1,
+    "percentagemPrevistos": 67,
+    "percentagemNaoPrevistos": 33
+  }
+]
+```
+
+## 11. Regras de negócio
 
 | Regra | O que acontece |
 |---|---|
@@ -894,10 +974,11 @@ Filtros disponíveis nas listagens:
 | `GET /api/artigos` | `idTipoArtigo` (inteiro) | `/api/artigos?idTipoArtigo=1` |
 | `GET /api/orcamentos` | `ano` (inteiro) | `/api/orcamentos?ano=2026` |
 | `GET /api/compras` | `fechada` (`true` ou `false`) | `/api/compras?fechada=false` |
+| `GET /api/estatisticas/meses` | `ano` (inteiro) | `/api/estatisticas/meses?ano=2026` |
 
 Sem filtro, a listagem devolve tudo. Um filtro sem resultados devolve `[]` com 200. Um filtro com valor do tipo errado dá 400.
 
-## 11. Fluxo de exemplo
+## 12. Fluxo de exemplo
 
 Uma compra do início ao fim. Os ids são de exemplo; em cada passo usa-se o `id` devolvido no passo anterior.
 
