@@ -25,4 +25,6 @@ public interface OrcamentoRepository extends JpaRepository<Orcamento, Integer> {
     List<Orcamento> findAllComUtilizadoresPorAno(@Param("ano") Integer ano);
 
     Optional<Orcamento> findByAnoAndMes(Integer ano, Integer mes);
+
+    List<Orcamento> findByAno(Integer ano);
 }
