@@ -33,6 +33,11 @@ public interface ItemCompraRepository extends JpaRepository<ItemCompra, Integer>
             + " where c.dataCriacao >= :inicio and c.dataCriacao < :fim group by c.id, c.dataCriacao")
     List<GastoCompra> somarGastoPorCompraEntre(@Param("inicio") Instant inicio, @Param("fim") Instant fim);
 
+    @Query("select i from ItemCompra i join fetch i.compra c join fetch i.artigo"
+            + " where c.fechada = true and c.criadoPor.id = :idUtilizador"
+            + " order by c.dataFechada desc, c.id desc, i.id asc")
+    List<ItemCompra> findItensDeComprasFechadasDoUtilizador(@Param("idUtilizador") Integer idUtilizador);
+
     @Query("select new pt.istec.ishopping.repository.ResumoItensCompra(i.compra.id, count(i),"
             + " sum(case when type(i) = ItemCompraPrevisto then 1 else 0 end),"
             + " sum(case when type(i) = ItemCompraNaoPrevisto then 1 else 0 end),"

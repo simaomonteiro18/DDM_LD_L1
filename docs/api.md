@@ -680,6 +680,56 @@ Apaga uma compra aberta e todos os seus itens.
 
 **Códigos:** 204, 404 `"A compra não existe."`, 409 `"Não é possível apagar uma compra fechada."`
 
+### `GET /api/compras/exportar`
+
+Descarrega um ficheiro CSV com as compras fechadas do utilizador autenticado, uma linha por item. Não tem parâmetros.
+
+**Resposta 200:** o ficheiro, com os cabeçalhos HTTP:
+
+```
+Content-Type: text/csv;charset=UTF-8
+Content-Disposition: attachment; filename="compras-fechadas.csv"
+```
+
+**Que compras entram:** só as compras **fechadas** criadas pelo utilizador do token. As compras abertas e as dos outros utilizadores ficam de fora. As compras vêm da data de fecho mais recente para a mais antiga (em caso de empate, pelo id); dentro de cada compra, os itens vêm pela ordem em que foram criados. Uma compra fechada sem itens não gera linhas. Sem compras fechadas, o ficheiro tem só o cabeçalho.
+
+**Formato:**
+
+- texto em UTF-8 com BOM, para o Excel mostrar bem os acentos;
+- separador `;` e linhas terminadas em CRLF;
+- primeira linha com o cabeçalho, exatamente:
+
+  ```
+  NomeCompra;DataCriacao;DataFechada;NomeArtigo;ArtigoPrevisto;ArtigoNaoPrevisto;QuantidadePrevista;QuantidadeAdquirida;PrecoUnitario
+  ```
+
+| Coluna | Conteúdo |
+|---|---|
+| `NomeCompra` | Nome da compra |
+| `DataCriacao` | Data de criação da compra, `dd/MM/yyyy HH:mm` no fuso `Europe/Lisbon` |
+| `DataFechada` | Data de fecho da compra, no mesmo formato |
+| `NomeArtigo` | Nome do artigo do item |
+| `ArtigoPrevisto` | `Sim` se o item for previsto, `Não` se não for |
+| `ArtigoNaoPrevisto` | `Sim` se o item for não previsto, `Não` se não for |
+| `QuantidadePrevista` | Quantidade prevista; vazia nos itens não previstos |
+| `QuantidadeAdquirida` | Quantidade adquirida; vazia se o item ainda não foi adquirido |
+| `PrecoUnitario` | Preço unitário com 2 casas decimais e vírgula decimal, sem separador de milhares (por exemplo `1234,50`); vazio se o item ainda não foi adquirido |
+
+**Campos de texto** (`NomeCompra` e `NomeArtigo`):
+
+- se começarem por `=`, `+`, `-`, `@`, tabulação ou retorno de carro, levam um apóstrofo à frente (por exemplo `'=SOMA(A1:A9)`), para a folha de cálculo não os executar como fórmula;
+- se tiverem `;`, aspas ou quebras de linha, vão entre aspas, com as aspas interiores duplicadas (por exemplo `"Jantar; festa"`).
+
+**Códigos:** 200, 401.
+
+```
+NomeCompra;DataCriacao;DataFechada;NomeArtigo;ArtigoPrevisto;ArtigoNaoPrevisto;QuantidadePrevista;QuantidadeAdquirida;PrecoUnitario
+'=SOMA(A1:A9);18/11/2026 10:27;18/11/2026 10:27;Leite;Não;Sim;;1;0,89
+"Jantar; festa";18/11/2026 10:26;18/11/2026 10:26;Arroz;Sim;Não;2;2;1,50
+"Jantar; festa";18/11/2026 10:26;18/11/2026 10:26;Massa;Sim;Não;3;;
+"Jantar; festa";18/11/2026 10:26;18/11/2026 10:26;Maçã;Não;Sim;;1;1234,50
+```
+
 ## 9. Itens de compra
 
 Cada item pertence a uma compra e a um artigo. Há dois tipos:
