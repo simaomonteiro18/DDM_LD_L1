@@ -7,8 +7,8 @@ import { definirServidor } from './src/api/client';
 import { lerUrlGuardada } from './src/config/servidor';
 import LoginScreen from './src/screens/LoginScreen';
 import ServidorScreen from './src/screens/ServidorScreen';
-import HomeScreen from './src/screens/HomeScreen';
-import { ROTAS_AUTENTICADAS } from './src/navigation/rotas';
+import Separadores from './src/navigation/Separadores';
+import { ROTAS_EMPILHADAS } from './src/navigation/rotas';
 
 const Stack = createNativeStackNavigator();
 
@@ -18,8 +18,9 @@ function Routes() {
     <Stack.Navigator>
       {user ? (
         <>
-          <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'iShopping' }} />
-          {ROTAS_AUTENTICADAS.map((rota) => (
+          {/* Os separadores ficam por baixo; os ecras de gestao abrem em pilha por cima deles */}
+          <Stack.Screen name="Separadores" component={Separadores} options={{ headerShown: false }} />
+          {ROTAS_EMPILHADAS.map((rota) => (
             <Stack.Screen
               key={rota.nome}
               name={rota.nome}

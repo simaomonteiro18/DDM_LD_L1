@@ -8,7 +8,7 @@ export default function EcraProvisorioScreen({ route }) {
     <ScrollView style={s.fundo} contentContainerStyle={s.conteudo}>
       <Text style={s.titulo}>{titulo}</Text>
       {detalhe ? <Text style={s.detalhe}>{detalhe}</Text> : null}
-      <Text style={s.texto}>Ecrã em construção</Text>
+      <Text style={s.texto}>Em desenvolvimento</Text>
     </ScrollView>
   );
 }
