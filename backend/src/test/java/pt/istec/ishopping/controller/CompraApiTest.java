@@ -31,6 +31,8 @@ import pt.istec.ishopping.config.InicializadorUtilizador;
 import pt.istec.ishopping.model.Compra;
 import pt.istec.ishopping.model.Utilizador;
 import pt.istec.ishopping.repository.CompraRepository;
+import pt.istec.ishopping.repository.ItemCompraRepository;
+import pt.istec.ishopping.repository.TotalItensCompra;
 import pt.istec.ishopping.repository.UtilizadorRepository;
 import pt.istec.ishopping.security.JwtService;
 
@@ -47,6 +49,8 @@ class CompraApiTest {
     private JwtService jwtService;
     @MockitoBean
     private CompraRepository compraRepository;
+    @MockitoBean
+    private ItemCompraRepository itemCompraRepository;
     @MockitoBean
     private UtilizadorRepository utilizadorRepository;
     @MockitoBean
@@ -114,9 +118,13 @@ class CompraApiTest {
     void listarDevolveAEstruturaEsperada() throws Exception {
         when(compraRepository.findAllByOrderByDataCriacaoDescIdDesc())
                 .thenReturn(List.of(criarCompra(2, "Semana 2"), criarCompraFechada(1)));
+        when(itemCompraRepository.contarPrevistosPorCompra(List.of(2, 1)))
+                .thenReturn(List.of(new TotalItensCompra(2, 3L)));
 
         mockMvc.perform(get(BASE).header("Authorization", autorizacao))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].totalItensPrevistos").value(3))
+                .andExpect(jsonPath("$[1].totalItensPrevistos").value(0))
                 .andExpect(jsonPath("$[0].id").value(2))
                 .andExpect(jsonPath("$[0].nome").value("Semana 2"))
                 .andExpect(jsonPath("$[0].fechada").value(false))
@@ -148,9 +156,11 @@ class CompraApiTest {
     @Test
     void obterDevolve200() throws Exception {
         when(compraRepository.findById(1)).thenReturn(Optional.of(criarCompra(1, "Semana 1")));
+        when(itemCompraRepository.contarPrevistos(1)).thenReturn(4L);
 
         mockMvc.perform(get(BASE + "/1").header("Authorization", autorizacao))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalItensPrevistos").value(4))
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.nome").value("Semana 1"));
     }
@@ -187,7 +197,8 @@ class CompraApiTest {
                 .andExpect(jsonPath("$.id").value(4))
                 .andExpect(jsonPath("$.nome").value("Semana 1"))
                 .andExpect(jsonPath("$.fechada").value(false))
-                .andExpect(jsonPath("$.criadoPor.username").value("ana"));
+                .andExpect(jsonPath("$.criadoPor.username").value("ana"))
+                .andExpect(jsonPath("$.totalItensPrevistos").value(0));
     }
 
     @Test
@@ -217,9 +228,11 @@ class CompraApiTest {
         Compra compra = criarCompra(1, "Semana 1");
         when(compraRepository.findByIdParaAlterar(1)).thenReturn(Optional.of(compra));
         when(compraRepository.saveAndFlush(compra)).thenReturn(compra);
+        when(itemCompraRepository.contarPrevistos(1)).thenReturn(2L);
 
         atualizar(1, "{\"nome\":\"Semana 2\"}")
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalItensPrevistos").value(2))
                 .andExpect(jsonPath("$.nome").value("Semana 2"))
                 .andExpect(jsonPath("$.alteradoPor.username").value("ana"))
                 .andExpect(jsonPath("$.dataAlterado").isNotEmpty());
@@ -256,9 +269,11 @@ class CompraApiTest {
         Compra compra = criarCompra(1, "Semana 1");
         when(compraRepository.findByIdParaAlterar(1)).thenReturn(Optional.of(compra));
         when(compraRepository.saveAndFlush(compra)).thenReturn(compra);
+        when(itemCompraRepository.contarPrevistos(1)).thenReturn(5L);
 
         fechar(1)
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalItensPrevistos").value(5))
                 .andExpect(jsonPath("$.fechada").value(true))
                 .andExpect(jsonPath("$.fechadaPor.username").value("ana"))
                 .andExpect(jsonPath("$.dataFechada").isNotEmpty());
