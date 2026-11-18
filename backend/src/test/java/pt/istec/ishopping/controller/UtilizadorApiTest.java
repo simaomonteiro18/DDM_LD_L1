@@ -61,6 +61,7 @@ class UtilizadorApiTest {
         autenticado = criarUtilizador(1, "ana");
         autorizacao = "Bearer " + jwtService.gerar(autenticado).valor();
         when(utilizadorRepository.findById(1)).thenReturn(Optional.of(autenticado));
+        when(utilizadorRepository.existsById(1)).thenReturn(true);
     }
 
     private Utilizador criarUtilizador(Integer id, String username) {

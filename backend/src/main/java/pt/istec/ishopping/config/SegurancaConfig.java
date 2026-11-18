@@ -9,7 +9,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -22,6 +21,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
+import pt.istec.ishopping.security.ConversorTokenUtilizador;
 import pt.istec.ishopping.security.RespostasSeguranca;
 
 @Configuration
@@ -29,7 +29,8 @@ import pt.istec.ishopping.security.RespostasSeguranca;
 public class SegurancaConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, RespostasSeguranca respostas) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, RespostasSeguranca respostas,
+            ConversorTokenUtilizador conversorToken) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sessao -> sessao.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -38,7 +39,7 @@ public class SegurancaConfig {
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(servidor -> servidor
-                        .jwt(Customizer.withDefaults())
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(conversorToken))
                         .authenticationEntryPoint(respostas)
                         .accessDeniedHandler(respostas))
                 .exceptionHandling(excecoes -> excecoes

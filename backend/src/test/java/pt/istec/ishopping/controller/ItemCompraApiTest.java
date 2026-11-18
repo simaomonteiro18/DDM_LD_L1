@@ -40,6 +40,7 @@ import pt.istec.ishopping.model.Utilizador;
 import pt.istec.ishopping.repository.ArtigoRepository;
 import pt.istec.ishopping.repository.CompraRepository;
 import pt.istec.ishopping.repository.ItemCompraRepository;
+import pt.istec.ishopping.repository.UtilizadorRepository;
 import pt.istec.ishopping.security.JwtService;
 
 @SpringBootTest
@@ -53,6 +54,8 @@ class ItemCompraApiTest {
     private MockMvc mockMvc;
     @Autowired
     private JwtService jwtService;
+    @MockitoBean
+    private UtilizadorRepository utilizadorRepository;
     @MockitoBean
     private ItemCompraRepository itemCompraRepository;
     @MockitoBean
@@ -72,6 +75,7 @@ class ItemCompraApiTest {
     void preparar() {
         Utilizador utilizador = new Utilizador();
         ReflectionTestUtils.setField(utilizador, "id", 1);
+        when(utilizadorRepository.existsById(1)).thenReturn(true);
         autorizacao = "Bearer " + jwtService.gerar(utilizador).valor();
         compra = new Compra();
         ReflectionTestUtils.setField(compra, "id", 1);
