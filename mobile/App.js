@@ -7,9 +7,8 @@ import { definirServidor } from './src/api/client';
 import { lerUrlGuardada } from './src/config/servidor';
 import LoginScreen from './src/screens/LoginScreen';
 import ServidorScreen from './src/screens/ServidorScreen';
-import HomeScreen from './src/screens/HomeScreen';
-import OrcamentosScreen from './src/screens/OrcamentosScreen';
-import OrcamentoFormScreen from './src/screens/OrcamentoFormScreen';
+import Separadores from './src/navigation/Separadores';
+import { ROTAS_EMPILHADAS } from './src/navigation/rotas';
 
 const Stack = createNativeStackNavigator();
 
@@ -19,9 +18,17 @@ function Routes() {
     <Stack.Navigator>
       {user ? (
         <>
-          <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'iShopping' }} />
-          <Stack.Screen name="Orcamentos" component={OrcamentosScreen} options={{ title: 'Orçamentos' }} />
-          <Stack.Screen name="OrcamentoForm" component={OrcamentoFormScreen} options={{ title: 'Orçamento' }} />
+          {/* Os separadores ficam por baixo; os ecras de gestao abrem em pilha por cima deles */}
+          <Stack.Screen name="Separadores" component={Separadores} options={{ headerShown: false }} />
+          {ROTAS_EMPILHADAS.map((rota) => (
+            <Stack.Screen
+              key={rota.nome}
+              name={rota.nome}
+              component={rota.componente}
+              options={{ title: rota.titulo }}
+              initialParams={{ titulo: rota.titulo }}
+            />
+          ))}
         </>
       ) : (
         <>

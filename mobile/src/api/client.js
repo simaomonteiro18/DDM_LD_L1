@@ -21,6 +21,28 @@ export function definirToken(token) {
   }
 }
 
+// Funcao chamada quando um pedido autenticado devolve 401 (definida pelo AuthContext)
+let aoExpirarSessao = null;
+
+export function definirAoExpirarSessao(funcao) {
+  aoExpirarSessao = funcao;
+}
+
+// So conta como sessao expirada se o pedido levava o token atual,
+// por isso o 401 do login (enviado sem token) nao termina a sessao
+api.interceptors.response.use(
+  (resposta) => resposta,
+  (erro) => {
+    const cabecalhos = erro?.config?.headers;
+    const tokenDoPedido = cabecalhos?.get ? cabecalhos.get('Authorization') : cabecalhos?.Authorization;
+    const tokenAtual = api.defaults.headers.common.Authorization;
+    if (erro?.response?.status === 401 && tokenDoPedido && tokenDoPedido === tokenAtual && aoExpirarSessao) {
+      aoExpirarSessao();
+    }
+    return Promise.reject(erro);
+  },
+);
+
 // Transforma um erro do axios numa mensagem para mostrar ao utilizador.
 // O backend devolve os erros no formato ErroResposta { estado, erro, ... }
 export function mensagemDeErro(e, porDefeito = 'Ocorreu um erro.') {

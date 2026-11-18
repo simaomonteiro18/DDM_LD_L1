@@ -1,16 +1,19 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import api, { definirToken } from '../api/client';
+import { Alert } from 'react-native';
+import { definirToken, definirAoExpirarSessao } from '../api/client';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  // Utilizador logado { id, nome, username }: o Id fica guardado durante a execução
+  // Utilizador logado { id, nome, username }, guardado durante a execucao.
+  // O token fica no cliente da API (definirToken).
   const [user, setUser] = useState(null);
 
-  // A resposta do login é { token, tipo, expiraEm, utilizador: { id, nome, username } }
+  // A resposta do login e { token, tipo, expiraEm, utilizador: { id, nome, username } }
   function entrar(resposta) {
     definirToken(resposta.token);
-    setUser(resposta.utilizador);
+    const { id, nome, username } = resposta.utilizador;
+    setUser({ id, nome, username });
   }
 
   function sair() {
@@ -18,20 +21,14 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
-  // Se o token expirar (8 horas) ou deixar de ser válido, o backend responde 401:
-  // nesse caso termina a sessão e a app volta ao Login
+  // Um pedido autenticado devolveu 401: o token expirou ou o utilizador foi apagado.
+  // O 401 do proprio login nao passa por aqui (ver o interceptor em api/client.js).
   useEffect(() => {
-    const id = api.interceptors.response.use(
-      (resposta) => resposta,
-      (erro) => {
-        const ehLogin = erro.config?.url?.includes('/auth/login');
-        if (erro.response?.status === 401 && !ehLogin) {
-          sair();
-        }
-        return Promise.reject(erro);
-      },
-    );
-    return () => api.interceptors.response.eject(id);
+    definirAoExpirarSessao(() => {
+      sair();
+      Alert.alert('Sessão terminada', 'A sessão terminou. Entra de novo.');
+    });
+    return () => definirAoExpirarSessao(null);
   }, []);
 
   return (
