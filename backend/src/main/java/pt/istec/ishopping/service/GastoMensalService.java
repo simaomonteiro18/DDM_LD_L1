@@ -34,6 +34,10 @@ public class GastoMensalService {
         return LocalDate.ofInstant(relogio.instant(), ZONA);
     }
 
+    public LocalDate dataEmLisboa(Instant instante) {
+        return LocalDate.ofInstant(instante, ZONA);
+    }
+
     public BigDecimal doMes(YearMonth mes) {
         BigDecimal somado = itemCompraRepository.somarGastoEntre(inicio(mes), inicio(mes.plusMonths(1)));
         return arredondar(somado == null ? BigDecimal.ZERO : somado);
