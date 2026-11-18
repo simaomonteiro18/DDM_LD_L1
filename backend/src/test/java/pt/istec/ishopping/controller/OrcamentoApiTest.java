@@ -34,6 +34,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import pt.istec.ishopping.config.InicializadorUtilizador;
 import pt.istec.ishopping.model.Orcamento;
 import pt.istec.ishopping.model.Utilizador;
+import pt.istec.ishopping.repository.ItemCompraRepository;
 import pt.istec.ishopping.repository.OrcamentoRepository;
 import pt.istec.ishopping.repository.UtilizadorRepository;
 import pt.istec.ishopping.security.JwtService;
@@ -52,6 +53,8 @@ class OrcamentoApiTest {
     private JwtService jwtService;
     @MockitoBean
     private OrcamentoRepository orcamentoRepository;
+    @MockitoBean
+    private ItemCompraRepository itemCompraRepository;
     @MockitoBean
     private UtilizadorRepository utilizadorRepository;
     @MockitoBean
@@ -97,6 +100,7 @@ class OrcamentoApiTest {
     void pedidosSemTokenDao401() throws Exception {
         mockMvc.perform(get(BASE)).andExpect(status().isUnauthorized());
         mockMvc.perform(get(BASE + "/1")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get(BASE + "/disponivel")).andExpect(status().isUnauthorized());
         mockMvc.perform(post(BASE).contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(put(BASE + "/1").contentType(MediaType.APPLICATION_JSON).content("{}"))
@@ -323,5 +327,62 @@ class OrcamentoApiTest {
         mockMvc.perform(delete(BASE + "/1").header("Authorization", autorizacao))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.erro").value("Não é possível apagar um orçamento com registos associados."));
+    }
+
+    @Test
+    void disponivelDevolveOOrcamentoDoMesSemSerLidoComoId() throws Exception {
+        when(orcamentoRepository.findByAnoAndMes(2026, 5)).thenReturn(Optional.of(criarOrcamento(1, 2026, 5, "300.00")));
+        when(itemCompraRepository.somarGastoEntre(any(), any())).thenReturn(new BigDecimal("75.00"));
+
+        mockMvc.perform(get(BASE + "/disponivel").param("ano", "2026").param("mes", "5")
+                .header("Authorization", autorizacao))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ano").value(2026))
+                .andExpect(jsonPath("$.mes").value(5))
+                .andExpect(jsonPath("$.orcamento").value(300.00))
+                .andExpect(jsonPath("$.gasto").value(75.00))
+                .andExpect(jsonPath("$.disponivel").value(225.00))
+                .andExpect(jsonPath("$.percentagemRestante").value(75))
+                .andExpect(jsonPath("$.ultrapassado").value(false));
+    }
+
+    @Test
+    void disponivelUltrapassadoDevolveValoresNegativos() throws Exception {
+        when(orcamentoRepository.findByAnoAndMes(2026, 5)).thenReturn(Optional.of(criarOrcamento(1, 2026, 5, "100.00")));
+        when(itemCompraRepository.somarGastoEntre(any(), any())).thenReturn(new BigDecimal("112.50"));
+
+        mockMvc.perform(get(BASE + "/disponivel").param("ano", "2026").param("mes", "5")
+                .header("Authorization", autorizacao))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.disponivel").value(-12.50))
+                .andExpect(jsonPath("$.percentagemRestante").value(-13))
+                .andExpect(jsonPath("$.ultrapassado").value(true));
+    }
+
+    @Test
+    void disponivelSemOrcamentoDa404() throws Exception {
+        when(orcamentoRepository.findByAnoAndMes(2026, 5)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get(BASE + "/disponivel").param("ano", "2026").param("mes", "5")
+                .header("Authorization", autorizacao))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.estado").value(404))
+                .andExpect(jsonPath("$.erro").value("Não existe orçamento para este mês."))
+                .andExpect(jsonPath("$.caminho").value(BASE + "/disponivel"));
+    }
+
+    @Test
+    void disponivelComParametrosInvalidosDa400() throws Exception {
+        mockMvc.perform(get(BASE + "/disponivel").param("ano", "2026").param("mes", "13")
+                .header("Authorization", autorizacao))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.erro").value("O mês tem de estar entre 1 e 12."));
+        mockMvc.perform(get(BASE + "/disponivel").param("ano", "1999").param("mes", "5")
+                .header("Authorization", autorizacao))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.erro").value("O ano tem de estar entre 2000 e 2100."));
+        mockMvc.perform(get(BASE + "/disponivel").param("mes", "abc").header("Authorization", autorizacao))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.erro").value("O pedido é inválido."));
     }
 }
