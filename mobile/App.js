@@ -8,6 +8,8 @@ import { lerUrlGuardada } from './src/config/servidor';
 import LoginScreen from './src/screens/LoginScreen';
 import ServidorScreen from './src/screens/ServidorScreen';
 import HomeScreen from './src/screens/HomeScreen';
+import OrcamentosScreen from './src/screens/OrcamentosScreen';
+import OrcamentoFormScreen from './src/screens/OrcamentoFormScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -16,7 +18,11 @@ function Routes() {
   return (
     <Stack.Navigator>
       {user ? (
-        <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'iShopping' }} />
+        <>
+          <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'iShopping' }} />
+          <Stack.Screen name="Orcamentos" component={OrcamentosScreen} options={{ title: 'Orçamentos' }} />
+          <Stack.Screen name="OrcamentoForm" component={OrcamentoFormScreen} options={{ title: 'Orçamento' }} />
+        </>
       ) : (
         <>
           <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
