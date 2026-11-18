@@ -38,7 +38,7 @@ Previstas para o projeto:
 Estado atual:
 
 - **Backend:** API com login, utilizadores, tipos de artigo, artigos, orçamentos, compras (com fecho) e itens de compra previstos e não previstos. A documentação dos endpoints está em [`docs/api.md`](docs/api.md).
-- **App móvel:** ecrã de login ligado à API e ecrã inicial.
+- **App móvel:** ecrã de login ligado à API, ecrã para configurar o endereço do servidor e ecrã inicial.
 
 ## Tecnologias
 
@@ -57,6 +57,7 @@ db/schema.sql        esquema da base de dados (8 tabelas)
 db/seed.sql          dados de exemplo (tipos de artigo e artigos)
 docs/api.md          documentação dos endpoints da API
 mobile/              app móvel em React Native com Expo
+mobile/.env.example  modelo do .env.local da app (endereço da API por omissão)
 docker-compose.yml   contentor do PostgreSQL
 .env.example         modelo do ficheiro de configuração .env
 ```
@@ -207,21 +208,45 @@ O telemóvel com o Expo Go e o PC onde corre o backend têm de estar **na mesma 
 
 ### 1. Configurar o endereço da API
 
-O endereço da API está escrito no código, em `mobile/src/api/client.js`:
-
-```js
-export const API_URL = 'http://10.0.97.201:8080/api';
-```
-
-O telemóvel não consegue usar `localhost`, por isso cada pessoa tem de trocar este IP **localmente** pelo IP do seu PC na rede atual:
+A app precisa do endereço do PC onde corre o backend. O telemóvel não consegue usar `localhost`, por isso começa por descobrir o IP do PC na rede atual:
 
 1. Abre um terminal e corre `ipconfig`.
 2. No adaptador de rede que estás a usar (normalmente Wi-Fi), copia o **Endereço IPv4**, por exemplo `192.168.1.50`.
-3. Em `mobile/src/api/client.js`, troca o IP e mantém o resto do endereço: `http://192.168.1.50:8080/api`.
 
-O IP muda quando mudas de rede (casa, escola), por isso pode ser preciso repetir isto.
+O endereço a usar é então `http://192.168.1.50:8080`, **sem `/api` no fim**, porque a app acrescenta-o sozinha. O IP muda quando mudas de rede (casa, escola).
 
-**Não faças commit desta alteração.** Antes de fazer commit, confirma com `git status` que o `client.js` não vai junto, e para o repor usa `git restore mobile/src/api/client.js`.
+Há duas formas de indicar este endereço à app. Podes usar só uma ou as duas.
+
+**a) Endereço por omissão, no ficheiro `mobile/.env.local`**
+
+Na pasta `mobile/`, copia o modelo:
+
+```bash
+cp .env.example .env.local
+```
+
+(Em PowerShell: `Copy-Item .env.example .env.local`; em cmd: `copy .env.example .env.local`.)
+
+Depois põe o teu IP na variável `EXPO_PUBLIC_API_URL`:
+
+```
+EXPO_PUBLIC_API_URL=http://192.168.1.50:8080
+```
+
+O `.env.local` não vai para o Git (está no `mobile/.gitignore`), por isso cada pessoa tem o seu. Se mudares este ficheiro com o `npx expo start` a correr, para-o e arranca-o de novo. Se o ficheiro não existir, o endereço por omissão é `http://10.0.2.2:8080`, que só funciona no emulador de Android (aponta para o PC onde o emulador corre).
+
+**b) Ecrã "Servidor", dentro da app**
+
+No fundo do ecrã de login aparece `Servidor:` com o endereço atual e a opção **Alterar**, que abre o ecrã "Servidor". Lá:
+
+- escreve o endereço no campo **Endereço do servidor**. Também aceita só `192.168.1.50:8080`: a app acrescenta o `http://` e retira um `/` ou `/api` final;
+- **Testar ligação** confirma se o backend responde nesse endereço;
+- **Guardar** guarda o endereço no telemóvel e volta ao login;
+- **Repor endereço por defeito** apaga o endereço guardado e volta ao da alínea a).
+
+O ecrã "Servidor" só está disponível no login, antes de entrar.
+
+**Que endereço é usado:** sempre que a app arranca, usa o endereço guardado no ecrã "Servidor", se houver um. Se não houver, usa o `EXPO_PUBLIC_API_URL` do `.env.local`, ou o `http://10.0.2.2:8080` quando a variável não está definida. Por isso, depois de guardares um endereço no ecrã "Servidor", mudar o `.env.local` deixa de ter efeito nesse telemóvel até carregares em **Repor endereço por defeito**.
 
 ### 2. Instalar e arrancar
 
@@ -266,12 +291,12 @@ O backend não consegue entrar na base de dados. As causas mais comuns:
 - **O backend está a ligar-se a outro PostgreSQL** instalado no PC na mesma porta. Usa outra porta com `DB_PORT` (ver acima).
 - **O contentor não está a correr.** Confirma com `docker compose ps` e que o Docker Desktop está aberto.
 
-### A app mostra "Não foi possível ligar ao servidor. Verifica a rede e o IP."
+### A app mostra "Não foi possível ligar ao servidor. Verifica o endereço em "Servidor"."
 
 A app não chegou ao backend. Verifica, por esta ordem:
 
 1. **O backend está a correr.** No PC, `http://localhost:8080/actuator/health` deve responder `{"status":"UP"}`.
-2. **O IP está certo.** O IP em `mobile/src/api/client.js` tem de ser o IPv4 atual do PC (`ipconfig`). Depois de o mudar, recarrega a app.
+2. **O endereço está certo.** No login, vê o endereço em `Servidor:`. Tem de ter o IPv4 atual do PC (`ipconfig`) e a porta 8080, por exemplo `http://192.168.1.50:8080`. Se estiver errado, corrige-o em **Alterar** e usa **Testar ligação** (ver [Configurar o endereço da API](#1-configurar-o-endereço-da-api)).
 3. **Estão na mesma rede.** O telemóvel tem de estar no mesmo Wi-Fi que o PC, e não nos dados móveis. Algumas redes, como as de escolas, impedem os dispositivos de comunicarem entre si; nesse caso, liga o PC ao hotspot do telemóvel.
 4. **A firewall do Windows não bloqueia a porta 8080.** Para testar, abre no browser do telemóvel `http://IP-DO-PC:8080/actuator/health`. Se não responder, permite a porta 8080. Na primeira vez que o Java pede acesso à rede, o Windows mostra um aviso; aceita para redes privadas. Também podes criar a regra numa PowerShell aberta como administrador:
 
