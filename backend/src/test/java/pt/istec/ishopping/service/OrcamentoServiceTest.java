@@ -9,6 +9,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,12 +25,15 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import pt.istec.ishopping.dto.OrcamentoAtualizarPedido;
 import pt.istec.ishopping.dto.OrcamentoCriarPedido;
+import pt.istec.ishopping.dto.OrcamentoDisponivelResposta;
 import pt.istec.ishopping.dto.OrcamentoResposta;
 import pt.istec.ishopping.dto.UtilizadorResposta;
 import pt.istec.ishopping.exception.ConflitoException;
+import pt.istec.ishopping.exception.PedidoInvalidoException;
 import pt.istec.ishopping.exception.RecursoNaoEncontradoException;
 import pt.istec.ishopping.model.Orcamento;
 import pt.istec.ishopping.model.Utilizador;
+import pt.istec.ishopping.repository.ItemCompraRepository;
 import pt.istec.ishopping.repository.OrcamentoRepository;
 import pt.istec.ishopping.security.UtilizadorAutenticado;
 
@@ -36,8 +42,13 @@ class OrcamentoServiceTest {
 
     private static final String PERIODO_EM_USO = "Já existe um orçamento para este mês e ano.";
 
+    // Em Lisboa ja e 1 de abril de 2026 (UTC+1 desde o fim de marco)
+    private static final Clock RELOGIO = Clock.fixed(Instant.parse("2026-03-31T23:30:00Z"), ZoneOffset.UTC);
+
     @Mock
     private OrcamentoRepository orcamentoRepository;
+    @Mock
+    private ItemCompraRepository itemCompraRepository;
     @Mock
     private UtilizadorAutenticado utilizadorAutenticado;
     @InjectMocks
@@ -209,5 +220,89 @@ class OrcamentoServiceTest {
         assertThatThrownBy(() -> orcamentoService.apagar(1))
                 .isInstanceOf(ConflitoException.class)
                 .hasMessage("Não é possível apagar um orçamento com registos associados.");
+    }
+
+    private OrcamentoService servicoComRelogio() {
+        return new OrcamentoService(orcamentoRepository, itemCompraRepository, utilizadorAutenticado, RELOGIO);
+    }
+
+    @Test
+    void disponivelSemParametrosUsaOMesAtualDeLisboaESemComprasNadaFoiGasto() {
+        when(orcamentoRepository.findByAnoAndMes(2026, 4)).thenReturn(Optional.of(criarOrcamento(1, 2026, 4, "400")));
+        when(itemCompraRepository.somarGastoEntre(Instant.parse("2026-03-31T23:00:00Z"),
+                Instant.parse("2026-04-30T23:00:00Z"))).thenReturn(null);
+
+        OrcamentoDisponivelResposta resposta = servicoComRelogio().disponivel(null, null);
+
+        assertThat(resposta).isEqualTo(new OrcamentoDisponivelResposta(2026, 4, new BigDecimal("400.00"),
+                new BigDecimal("0.00"), new BigDecimal("400.00"), new BigDecimal("100"), false));
+    }
+
+    @Test
+    void disponivelDescontaOGastoDoMes() {
+        when(orcamentoRepository.findByAnoAndMes(2026, 4)).thenReturn(Optional.of(criarOrcamento(1, 2026, 4, "400.00")));
+        when(itemCompraRepository.somarGastoEntre(any(), any())).thenReturn(new BigDecimal("100.50"));
+
+        OrcamentoDisponivelResposta resposta = servicoComRelogio().disponivel(2026, 4);
+
+        assertThat(resposta.gasto()).isEqualTo(new BigDecimal("100.50"));
+        assertThat(resposta.disponivel()).isEqualTo(new BigDecimal("299.50"));
+        assertThat(resposta.percentagemRestante()).isEqualTo(new BigDecimal("75"));
+        assertThat(resposta.ultrapassado()).isFalse();
+    }
+
+    @Test
+    void disponivelUltrapassadoFicaNegativo() {
+        when(orcamentoRepository.findByAnoAndMes(2026, 4)).thenReturn(Optional.of(criarOrcamento(1, 2026, 4, "100.00")));
+        when(itemCompraRepository.somarGastoEntre(any(), any())).thenReturn(new BigDecimal("112.50"));
+
+        OrcamentoDisponivelResposta resposta = servicoComRelogio().disponivel(2026, 4);
+
+        assertThat(resposta.disponivel()).isEqualTo(new BigDecimal("-12.50"));
+        assertThat(resposta.percentagemRestante()).isEqualTo(new BigDecimal("-13"));
+        assertThat(resposta.ultrapassado()).isTrue();
+    }
+
+    @Test
+    void disponivelLimitaAsComprasAoMesPedidoNoFusoDeLisboa() {
+        when(orcamentoRepository.findByAnoAndMes(2026, 10)).thenReturn(Optional.of(criarOrcamento(1, 2026, 10, "50")));
+
+        servicoComRelogio().disponivel(2026, 10);
+
+        // Outubro comeca em hora de verao (UTC+1) e acaba em hora de inverno (UTC+0)
+        verify(itemCompraRepository).somarGastoEntre(Instant.parse("2026-09-30T23:00:00Z"),
+                Instant.parse("2026-11-01T00:00:00Z"));
+    }
+
+    @Test
+    void disponivelComOrcamentoZeroNaoTemPercentagem() {
+        when(orcamentoRepository.findByAnoAndMes(2026, 4)).thenReturn(Optional.of(criarOrcamento(1, 2026, 4, "0")));
+        when(itemCompraRepository.somarGastoEntre(any(), any())).thenReturn(new BigDecimal("5.00"));
+
+        OrcamentoDisponivelResposta resposta = servicoComRelogio().disponivel(2026, 4);
+
+        assertThat(resposta.percentagemRestante()).isNull();
+        assertThat(resposta.disponivel()).isEqualTo(new BigDecimal("-5.00"));
+        assertThat(resposta.ultrapassado()).isTrue();
+    }
+
+    @Test
+    void disponivelSemOrcamentoDaNaoEncontrado() {
+        when(orcamentoRepository.findByAnoAndMes(2026, 4)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> servicoComRelogio().disponivel(2026, 4))
+                .isInstanceOf(RecursoNaoEncontradoException.class)
+                .hasMessage("Não existe orçamento para este mês.");
+        verify(itemCompraRepository, never()).somarGastoEntre(any(), any());
+    }
+
+    @Test
+    void disponivelComParametrosForaDoIntervaloDaPedidoInvalido() {
+        assertThatThrownBy(() -> servicoComRelogio().disponivel(2026, 13))
+                .isInstanceOf(PedidoInvalidoException.class)
+                .hasMessage("O mês tem de estar entre 1 e 12.");
+        assertThatThrownBy(() -> servicoComRelogio().disponivel(1999, 4))
+                .isInstanceOf(PedidoInvalidoException.class)
+                .hasMessage("O ano tem de estar entre 2000 e 2100.");
     }
 }

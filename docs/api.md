@@ -412,6 +412,50 @@ GET /api/orcamentos?ano=2026
 ]
 ```
 
+### `GET /api/orcamentos/disponivel`
+
+Devolve o orçamento de um mês, quanto já foi gasto e quanto resta.
+
+**Parâmetros opcionais**
+
+| Parâmetro | Tipo | Regras e mensagens |
+|---|---|---|
+| `ano` | número inteiro | Entre 2000 e 2100: `"O ano tem de estar entre 2000 e 2100."` Por omissão, o ano atual. |
+| `mes` | número inteiro | Entre 1 e 12: `"O mês tem de estar entre 1 e 12."` Por omissão, o mês atual. |
+
+O ano e o mês atuais são os de Portugal continental (fuso `Europe/Lisbon`). Cada parâmetro omitido é substituído pelo valor atual, independentemente do outro. Um valor não numérico dá 400 `"O pedido é inválido."`
+
+**Resposta 200**
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `ano` | número | |
+| `mes` | número | |
+| `orcamento` | número | Valor do orçamento desse mês, com 2 casas decimais |
+| `gasto` | número | Total gasto no mês, com 2 casas decimais |
+| `disponivel` | número | `orcamento` menos `gasto`; negativo se o orçamento foi ultrapassado |
+| `percentagemRestante` | número ou `null` | `disponivel` sobre `orcamento`, em percentagem arredondada ao inteiro mais próximo; pode ser negativa. `null` quando o orçamento é 0. |
+| `ultrapassado` | booleano | `true` se `disponivel` for negativo |
+
+O `gasto` é a soma de `quantidadeAdquirida` × `precoUnitario` de todos os itens, previstos e não previstos, das compras criadas nesse mês, abertas ou fechadas. O mês de uma compra é o da sua `dataCriacao`, no fuso `Europe/Lisbon`. Os itens ainda não adquiridos contam 0.
+
+**Códigos:** 200, 400, 404 `"Não existe orçamento para este mês."`
+
+```json
+GET /api/orcamentos/disponivel?ano=2026&mes=11
+
+200 OK
+{
+  "ano": 2026,
+  "mes": 11,
+  "orcamento": 100.00,
+  "gasto": 7.25,
+  "disponivel": 92.75,
+  "percentagemRestante": 93,
+  "ultrapassado": false
+}
+```
+
 ### `GET /api/orcamentos/{id}`
 
 Devolve um orçamento.
@@ -502,6 +546,7 @@ Objeto compra na resposta:
 | `dataAlterado` | string (data) ou `null` | |
 | `fechadaPor` | objeto ou `null` | Utilizador que fechou; `null` enquanto estiver aberta |
 | `dataFechada` | string (data) ou `null` | |
+| `totalItensPrevistos` | número | Número de itens previstos da compra (os não previstos não contam) |
 
 Os itens não vêm na compra. Obtêm-se em `GET /api/compras/{id}/itens`.
 
@@ -527,7 +572,8 @@ GET /api/compras?fechada=false
     "alteradoPor": null,
     "dataAlterado": null,
     "fechadaPor": null,
-    "dataFechada": null
+    "dataFechada": null,
+    "totalItensPrevistos": 0
   }
 ]
 ```
@@ -567,7 +613,8 @@ Location: http://IP:8080/api/compras/5
   "alteradoPor": null,
   "dataAlterado": null,
   "fechadaPor": null,
-  "dataFechada": null
+  "dataFechada": null,
+  "totalItensPrevistos": 0
 }
 ```
 
@@ -595,7 +642,8 @@ PUT /api/compras/5
   "alteradoPor": { "id": 1, "nome": "Ana Silva", "username": "ana.silva" },
   "dataAlterado": "2026-11-12T13:40:02.104512Z",
   "fechadaPor": null,
-  "dataFechada": null
+  "dataFechada": null,
+  "totalItensPrevistos": 0
 }
 ```
 
@@ -620,7 +668,8 @@ POST /api/compras/5/fechar
   "alteradoPor": { "id": 1, "nome": "Ana Silva", "username": "ana.silva" },
   "dataAlterado": "2026-11-12T13:40:02.104512Z",
   "fechadaPor": { "id": 1, "nome": "Ana Silva", "username": "ana.silva" },
-  "dataFechada": "2026-11-12T18:05:41.230001Z"
+  "dataFechada": "2026-11-12T18:05:41.230001Z",
+  "totalItensPrevistos": 1
 }
 ```
 
