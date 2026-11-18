@@ -8,6 +8,7 @@ import { lerUrlGuardada } from './src/config/servidor';
 import LoginScreen from './src/screens/LoginScreen';
 import ServidorScreen from './src/screens/ServidorScreen';
 import HomeScreen from './src/screens/HomeScreen';
+import { ROTAS_AUTENTICADAS } from './src/navigation/rotas';
 
 const Stack = createNativeStackNavigator();
 
@@ -16,7 +17,18 @@ function Routes() {
   return (
     <Stack.Navigator>
       {user ? (
-        <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'iShopping' }} />
+        <>
+          <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'iShopping' }} />
+          {ROTAS_AUTENTICADAS.map((rota) => (
+            <Stack.Screen
+              key={rota.nome}
+              name={rota.nome}
+              component={rota.componente}
+              options={{ title: rota.titulo }}
+              initialParams={{ titulo: rota.titulo }}
+            />
+          ))}
+        </>
       ) : (
         <>
           <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
