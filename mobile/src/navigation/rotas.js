@@ -5,6 +5,8 @@ import TiposArtigoScreen from '../screens/TiposArtigoScreen';
 import TipoArtigoFormScreen from '../screens/TipoArtigoFormScreen';
 import ArtigosScreen from '../screens/ArtigosScreen';
 import ArtigoFormScreen from '../screens/ArtigoFormScreen';
+import UtilizadoresScreen from '../screens/UtilizadoresScreen';
+import UtilizadorFormScreen from '../screens/UtilizadorFormScreen';
 
 // Registo central dos ecras que abrem em pilha por cima dos separadores (os separadores estao em Separadores.js).
 // Cada pessoa troca o EcraProvisorioScreen da sua entrada pelo ecra real quando o fundir
@@ -15,7 +17,7 @@ export const ENTRADAS_GESTAO = [
   { nome: 'TiposArtigo', titulo: 'Tipos de artigo', icone: 'pricetags-outline', componente: TiposArtigoScreen },
   { nome: 'Artigos', titulo: 'Artigos', icone: 'basket-outline', componente: ArtigosScreen },
   { nome: 'Orcamentos', titulo: 'Orçamentos mensais', icone: 'wallet-outline', componente: OrcamentosScreen },
-  { nome: 'Utilizadores', titulo: 'Utilizadores', icone: 'people-outline', componente: EcraProvisorioScreen },
+  { nome: 'Utilizadores', titulo: 'Utilizadores', icone: 'people-outline', componente: UtilizadoresScreen },
 ];
 
 // Ecras abertos a partir de outros ecras, que nao aparecem em nenhum menu
@@ -26,6 +28,7 @@ export const OUTRAS_ROTAS = [
   { nome: 'OrcamentoForm', titulo: 'Orçamento', componente: OrcamentoFormScreen },
   { nome: 'TipoArtigoForm', titulo: 'Tipo de artigo', componente: TipoArtigoFormScreen },
   { nome: 'ArtigoForm', titulo: 'Artigo', componente: ArtigoFormScreen },
+  { nome: 'UtilizadorForm', titulo: 'Utilizador', componente: UtilizadorFormScreen },
 ];
 
 export const ROTAS_EMPILHADAS = [...ENTRADAS_GESTAO, ...OUTRAS_ROTAS];
