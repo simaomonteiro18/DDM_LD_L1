@@ -16,6 +16,11 @@ export function AuthProvider({ children }) {
     setUser({ id, nome, username });
   }
 
+  // Depois de o utilizador logado se editar a si proprio (o token continua valido, usa o id)
+  function atualizarUser({ id, nome, username }) {
+    setUser({ id, nome, username });
+  }
+
   function sair() {
     definirToken(null);
     setUser(null);
@@ -32,7 +37,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, entrar, sair }}>
+    <AuthContext.Provider value={{ user, entrar, atualizarUser, sair }}>
       {children}
     </AuthContext.Provider>
   );
