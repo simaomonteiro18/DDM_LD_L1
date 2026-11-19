@@ -99,7 +99,7 @@ export default function ArtigoFormScreen({ navigation, route }) {
                 <Pressable
                   key={tipo.id}
                   style={[s.tipo, selecionado && s.tipoSelecionado]}
-                  onPress={() => setTipoId(tipo.id)}
+                  onPress={() => { setTipoId(tipo.id); setErro(''); }}
                   accessibilityState={{ selected: selecionado }}
                 >
                   <Text style={[s.tipoTexto, selecionado && s.tipoTextoSelecionado]}>{tipo.nome}</Text>
