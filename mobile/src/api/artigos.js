@@ -23,9 +23,9 @@ export async function apagarArtigo(id) {
   await api.delete(`${BASE}/${id}`);
 }
 
-// Corpo enviado ao backend. TODO: confirmar o nome do campo do tipo (tipoArtigoId? tipoId?)
+// Corpo enviado ao backend: o campo do tipo chama-se idTipoArtigo (ArtigoCriarPedido / ArtigoAtualizarPedido)
 function corpo({ nome, tipoId }) {
-  return { nome, tipoArtigoId: tipoId };
+  return { nome, idTipoArtigo: tipoId };
 }
 
 // O tipo pode vir como id solto ou como objeto aninhado, conforme a resposta do backend
